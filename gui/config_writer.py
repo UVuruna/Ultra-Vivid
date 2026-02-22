@@ -2,6 +2,7 @@
 
 import json
 import os
+from typing import Optional
 
 
 def write_config(config_path: str, state: dict) -> None:
@@ -23,7 +24,10 @@ def write_config(config_path: str, state: dict) -> None:
             ...
         ]
     }
+
+    Raises KeyError if state is missing required keys (openRGBPath, schedules, extras, rainbow).
     """
+    # New schema: startTime per item replaces root startHour (see lib/create-tasks.ps1)
     config = {
         "openRGBPath": state["openRGBPath"],
         "schedules": {
@@ -39,18 +43,20 @@ def write_config(config_path: str, state: dict) -> None:
         json.dump(config, f, indent=4, ensure_ascii=False)
 
 
-def read_config(config_path: str) -> dict | None:
-    """Read config.json and return GUI state dict, or None if file missing."""
+def read_config(config_path: str) -> Optional[dict]:
+    """Read config.json and return GUI state dict, or None if file missing or corrupt."""
     if not os.path.isfile(config_path):
         return None
     with open(config_path, encoding="utf-8") as f:
-        raw = json.load(f)
+        try:
+            raw = json.load(f)
+        except json.JSONDecodeError:
+            return None
 
     # Handle both old schema (startHour) and new schema (startTime per item)
     schedule_items = raw.get("schedules", {}).get("items", [])
-    start_hour = raw.get("schedules", {}).get("startHour", 3)
     count = len(schedule_items)
-    duration = 24 // count if count else 3
+    duration = 24 // count if count else 0
 
     schedules = []
     for i, item in enumerate(schedule_items):
@@ -58,6 +64,7 @@ def read_config(config_path: str) -> dict | None:
             start_time = item["startTime"]
         else:
             # Migrate old schema: calculate from startHour
+            start_hour = raw.get("schedules", {}).get("startHour", 3)
             hour = (start_hour + duration * i) % 24
             start_time = f"{hour:02d}:00"
         schedules.append({
