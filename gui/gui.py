@@ -23,6 +23,7 @@ class MainWindow:
         self.profiles: list[str] = []
         self.schedule_rows: list[dict] = []  # each: {"start_var", "end_lbl", "profile_var"}
         self.fkey_vars: list[tk.StringVar] = []  # 12 items, F1-F12
+        self.extra_rows: list[dict] = []  # each: {"name_var", "profile_var", "frame"}
         self.var_slot_count = tk.IntVar(value=8)
         self.var_start_hour = tk.IntVar(value=3)
         self._build_ui()
@@ -184,7 +185,37 @@ class MainWindow:
 
         ttk.Label(f, text="VBS fajlovi se generisu u rainbow/", foreground="gray").pack(anchor="w", padx=10, pady=10)
 
-    def _build_extras_tab(self): pass
+    def _build_extras_tab(self):
+        f = self.tab_extras
+        ttk.Label(f, text="Rucni profili (pozivaju se VBS-om):").pack(anchor="w", padx=10, pady=(15, 5))
+
+        self.extras_container = ttk.Frame(f)
+        self.extras_container.pack(fill="both", expand=True, padx=10)
+
+        ttk.Button(f, text="+ Dodaj novi", command=self._add_extra_row).pack(anchor="w", padx=10, pady=10)
+
+    def _add_extra_row(self, name: str = "", profile: str = "") -> None:
+        row_frame = ttk.Frame(self.extras_container)
+        row_frame.pack(fill="x", pady=2)
+
+        ttk.Label(row_frame, text="Naziv:").pack(side="left")
+        name_var = tk.StringVar(value=name)
+        ttk.Entry(row_frame, textvariable=name_var, width=12).pack(side="left", padx=5)
+
+        ttk.Label(row_frame, text="Profil:").pack(side="left")
+        profile_var = tk.StringVar(value=profile)
+        ttk.Combobox(row_frame, textvariable=profile_var, values=self.profiles, width=20, state="readonly").pack(
+            side="left", padx=5
+        )
+
+        row = {"name_var": name_var, "profile_var": profile_var, "frame": row_frame}
+
+        def delete(r=row):
+            self.extra_rows.remove(r)
+            r["frame"].destroy()
+
+        ttk.Button(row_frame, text="X", width=3, command=delete).pack(side="left", padx=5)
+        self.extra_rows.append(row)
 
     def _build_bottom_bar(self):
         bar = ttk.Frame(self.root)
@@ -246,7 +277,12 @@ class MainWindow:
                         result.append(child)
         return result
 
-    def _refresh_extras(self): pass  # implemented in Task 10
+    def _refresh_extras(self):
+        """Update extras combobox values after profile rescan."""
+        for row in self.extra_rows:
+            for child in row["frame"].winfo_children():
+                if isinstance(child, ttk.Combobox):
+                    child.config(values=self.profiles)
 
     def _load_existing_config(self):
         state = read_config(CONFIG_PATH)
@@ -266,6 +302,8 @@ class MainWindow:
             for i, item in enumerate(state["rainbow"]):
                 if i < len(self.fkey_vars):
                     self.fkey_vars[i].set(item["profile"])
+        for item in state.get("extras", []):
+            self._add_extra_row(name=item.get("vbsName", ""), profile=item.get("profile", ""))
 
     def _apply(self):
         if not os.path.isfile(self.var_path.get().strip()):
@@ -300,10 +338,15 @@ class MainWindow:
             {"vbsName": f"F{i + 1}", "profile": var.get()}
             for i, var in enumerate(self.fkey_vars)
         ]
+        extras = [
+            {"vbsName": row["name_var"].get(), "profile": row["profile_var"].get()}
+            for row in self.extra_rows
+            if row["name_var"].get().strip()
+        ]
         return {
             "openRGBPath": self.var_path.get().strip(),
             "schedules": schedules,
-            "extras": [],
+            "extras": extras,
             "rainbow": rainbow,
         }
 
