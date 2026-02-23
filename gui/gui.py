@@ -103,16 +103,13 @@ class MainWindow(QMainWindow):
         layout.addWidget(QLabel("Found profiles:"))
 
         self.list_profiles = QListWidget()
-        self.list_profiles.setFixedHeight(130)
         self.list_profiles.setSelectionMode(QListWidget.SelectionMode.NoSelection)
         self.list_profiles.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        layout.addWidget(self.list_profiles)
+        layout.addWidget(self.list_profiles, stretch=1)
 
         btn_rescan = QPushButton("Rescan profiles")
         btn_rescan.clicked.connect(self._rescan)
         layout.addWidget(btn_rescan, alignment=Qt.AlignmentFlag.AlignLeft)
-
-        layout.addStretch()
 
     def _build_schedule_tab(self):
         layout = QVBoxLayout(self.tab_schedule)
