@@ -29,18 +29,14 @@ Write-Host "Created task: OpenRGB autoprofile (at log on + resume from sleep)" -
 Write-Host "Creating daily tasks..." -ForegroundColor Yellow
 
 $items = $config.schedules.items
-$startHour = [int]$config.schedules.startHour
-$count = $items.Count
-$duration = [int][math]::Floor(24 / $count)
 
-for ($i = 0; $i -lt $count; $i++) {
+for ($i = 0; $i -lt $items.Count; $i++) {
     $item = $items[$i]
     $taskName = $item.taskName
     $prof = $item.profile
 
-    # Calculate time from startHour and position
-    $hour = [int](($startHour + $duration * $i) % 24)
-    $time = "{0:D2}:00" -f $hour
+    # Read startTime directly from config item (format: "HH:MM")
+    $time = $item.startTime
 
     $action = New-ScheduledTaskAction -Execute $openRGBPath -Argument "-p `"$prof`""
     $trigger = New-ScheduledTaskTrigger -Daily -At $time
