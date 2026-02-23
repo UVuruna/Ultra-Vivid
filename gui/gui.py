@@ -21,6 +21,9 @@ class MainWindow:
         self.root.resizable(False, False)
 
         self.profiles: list[str] = []
+        self.schedule_rows: list[dict] = []  # each: {"start_var", "end_lbl", "profile_var"}
+        self.var_slot_count = tk.IntVar(value=8)
+        self.var_start_hour = tk.IntVar(value=3)
         self._build_ui()
         self._load_existing_config()
 
@@ -72,7 +75,108 @@ class MainWindow:
         )
 
     # Placeholder build methods - implemented in Tasks 8-10
-    def _build_schedule_tab(self): pass
+    def _build_schedule_tab(self):
+        f = self.tab_schedule
+
+        ctrl = ttk.Frame(f)
+        ctrl.pack(fill="x", padx=10, pady=10)
+
+        ttk.Label(ctrl, text="Pocetni sat:").pack(side="left")
+        ttk.Spinbox(ctrl, from_=0, to=23, width=4, textvariable=self.var_start_hour).pack(side="left", padx=5)
+
+        ttk.Label(ctrl, text="  Broj slotova:").pack(side="left")
+        slot_spin = ttk.Spinbox(ctrl, from_=2, to=24, width=4, textvariable=self.var_slot_count)
+        slot_spin.pack(side="left", padx=5)
+        slot_spin.bind("<FocusOut>", lambda e: self._rebuild_schedule_table())
+
+        ttk.Button(ctrl, text="Resetuj", command=self._reset_schedule).pack(side="left", padx=10)
+
+        hdr = ttk.Frame(f)
+        hdr.pack(fill="x", padx=10)
+        for text, w in [("Slot", 5), ("Pocetak", 10), ("Kraj", 10), ("Profil", 25)]:
+            ttk.Label(hdr, text=text, width=w, anchor="w").pack(side="left")
+
+        self.schedule_frame = ttk.Frame(f)
+        self.schedule_frame.pack(fill="both", expand=True, padx=10)
+
+        self.lbl_gap_warning = ttk.Label(f, text="", foreground="orange")
+        self.lbl_gap_warning.pack(padx=10, anchor="w")
+
+        self._rebuild_schedule_table()
+
+    def _rebuild_schedule_table(self, keep_profiles=False):
+        """Rebuild schedule rows from current slot count and start hour."""
+        old_profiles = [row["profile_var"].get() for row in self.schedule_rows] if keep_profiles else []
+
+        for widget in self.schedule_frame.winfo_children():
+            widget.destroy()
+        self.schedule_rows.clear()
+
+        count = self.var_slot_count.get()
+        start = self.var_start_hour.get()
+        duration = 24 // count if count else 3
+
+        for i in range(count):
+            hour = (start + duration * i) % 24
+            start_time = f"{hour:02d}:00"
+            row_frame = ttk.Frame(self.schedule_frame)
+            row_frame.pack(fill="x", pady=1)
+
+            ttk.Label(row_frame, text=str(i + 1), width=5).pack(side="left")
+
+            start_var = tk.StringVar(value=start_time)
+            start_entry = ttk.Entry(row_frame, textvariable=start_var, width=8)
+            start_entry.pack(side="left", padx=2)
+            start_entry.bind("<FocusOut>", lambda e: self._update_end_times())
+
+            end_lbl = ttk.Label(row_frame, text="-", width=10)
+            end_lbl.pack(side="left", padx=2)
+
+            profile_var = tk.StringVar(value=old_profiles[i] if i < len(old_profiles) else "")
+            combo = ttk.Combobox(row_frame, textvariable=profile_var, values=self.profiles, width=22, state="readonly")
+            combo.pack(side="left", padx=2)
+
+            self.schedule_rows.append({
+                "start_var": start_var,
+                "end_lbl": end_lbl,
+                "profile_var": profile_var,
+            })
+
+        self._update_end_times()
+
+    def _update_end_times(self):
+        """Recalculate end time labels and check for gaps."""
+        rows = self.schedule_rows
+        if not rows:
+            return
+        gaps = []
+        for i, row in enumerate(rows):
+            next_start = rows[(i + 1) % len(rows)]["start_var"].get()
+            try:
+                nh, nm = map(int, next_start.split(":"))
+                end_min = (nh * 60 + nm - 1) % (24 * 60)
+                end_str = f"{end_min // 60:02d}:{end_min % 60:02d}"
+                row["end_lbl"].config(text=end_str)
+            except ValueError:
+                row["end_lbl"].config(text="??")
+
+            try:
+                nh2, nm2 = map(int, rows[(i + 1) % len(rows)]["start_var"].get().split(":"))
+                this_end_min = (nh2 * 60 + nm2 - 1) % (24 * 60)
+                actual_next = nh2 * 60 + nm2
+                if actual_next != (this_end_min + 1) % (24 * 60):
+                    gaps.append(i + 1)
+            except (ValueError, ZeroDivisionError):
+                pass
+
+        if gaps:
+            self.lbl_gap_warning.config(text=f"Moguce vremenske rupe kod slotova: {gaps}")
+        else:
+            self.lbl_gap_warning.config(text="")
+
+    def _reset_schedule(self):
+        self._rebuild_schedule_table(keep_profiles=True)
+
     def _build_fkeys_tab(self): pass
     def _build_extras_tab(self): pass
 
@@ -116,8 +220,13 @@ class MainWindow:
         self._refresh_dropdowns()
 
     def _refresh_dropdowns(self):
-        """Update all dropdowns in other tabs after profile rescan. Implemented in Tasks 8-10."""
-        pass
+        """Update all dropdowns in other tabs after profile rescan."""
+        self._rebuild_schedule_table(keep_profiles=True)
+        self._refresh_fkeys()
+        self._refresh_extras()
+
+    def _refresh_fkeys(self): pass   # implemented in Task 9
+    def _refresh_extras(self): pass  # implemented in Task 10
 
     def _load_existing_config(self):
         state = read_config(CONFIG_PATH)
@@ -125,7 +234,14 @@ class MainWindow:
             return
         self.var_path.set(state["openRGBPath"])
         self._rescan()
-        # Populate other tabs - done in Tasks 8-10
+        if state.get("schedules"):
+            self.var_slot_count.set(len(state["schedules"]))
+            self._rebuild_schedule_table()
+            for i, item in enumerate(state["schedules"]):
+                if i < len(self.schedule_rows):
+                    self.schedule_rows[i]["start_var"].set(item["startTime"])
+                    self.schedule_rows[i]["profile_var"].set(item["profile"])
+            self._update_end_times()
 
     def _apply(self):
         if not os.path.isfile(self.var_path.get().strip()):
@@ -147,10 +263,18 @@ class MainWindow:
             self.lbl_bottom_status.config(text=f"Greska - {msg}")
 
     def _collect_state(self) -> dict:
-        """Collect current GUI state. Extended in Tasks 8-10."""
+        """Collect current GUI state into dict for config_writer."""
+        schedules = []
+        for i, row in enumerate(self.schedule_rows):
+            schedules.append({
+                "taskName": f"OpenRGB slot{i + 1}",
+                "vbsName": f"slot{i + 1}",
+                "profile": row["profile_var"].get(),
+                "startTime": row["start_var"].get(),
+            })
         return {
             "openRGBPath": self.var_path.get().strip(),
-            "schedules": [],
+            "schedules": schedules,
             "extras": [],
             "rainbow": [],
         }
