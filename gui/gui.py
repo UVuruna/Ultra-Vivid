@@ -22,6 +22,7 @@ class MainWindow:
 
         self.profiles: list[str] = []
         self.schedule_rows: list[dict] = []  # each: {"start_var", "end_lbl", "profile_var"}
+        self.fkey_vars: list[tk.StringVar] = []  # 12 items, F1-F12
         self.var_slot_count = tk.IntVar(value=8)
         self.var_start_hour = tk.IntVar(value=3)
         self._build_ui()
@@ -164,7 +165,25 @@ class MainWindow:
     def _reset_schedule(self):
         self._rebuild_schedule_table(keep_profiles=True)
 
-    def _build_fkeys_tab(self): pass
+    def _build_fkeys_tab(self):
+        f = self.tab_fkeys
+        ttk.Label(f, text="Dodeli profil na F tastere:").pack(anchor="w", padx=10, pady=(15, 5))
+
+        grid = ttk.Frame(f)
+        grid.pack(padx=10)
+
+        self.fkey_vars = []
+        for i in range(12):
+            row, col = divmod(i, 2)  # 2 columns: F1,F2 in row 0, F3,F4 in row 1, etc.
+            var = tk.StringVar()
+            self.fkey_vars.append(var)
+            ttk.Label(grid, text=f"F{i + 1}:", width=5).grid(row=row, column=col * 2, sticky="e", padx=5, pady=3)
+            ttk.Combobox(grid, textvariable=var, values=self.profiles, width=20, state="readonly").grid(
+                row=row, column=col * 2 + 1, sticky="w", padx=5, pady=3
+            )
+
+        ttk.Label(f, text="VBS fajlovi se generisu u rainbow/", foreground="gray").pack(anchor="w", padx=10, pady=10)
+
     def _build_extras_tab(self): pass
 
     def _build_bottom_bar(self):
@@ -212,7 +231,21 @@ class MainWindow:
         self._refresh_fkeys()
         self._refresh_extras()
 
-    def _refresh_fkeys(self): pass   # implemented in Task 9
+    def _refresh_fkeys(self):
+        """Update F-key combobox values after profile rescan."""
+        for widget in self._get_fkey_comboboxes():
+            widget.config(values=self.profiles)
+
+    def _get_fkey_comboboxes(self) -> list:
+        """Return all Combobox widgets from the fkeys tab grid."""
+        result = []
+        for frame in self.tab_fkeys.winfo_children():
+            if isinstance(frame, ttk.Frame):
+                for child in frame.winfo_children():
+                    if isinstance(child, ttk.Combobox):
+                        result.append(child)
+        return result
+
     def _refresh_extras(self): pass  # implemented in Task 10
 
     def _load_existing_config(self):
@@ -229,6 +262,10 @@ class MainWindow:
                     self.schedule_rows[i]["start_var"].set(item["startTime"])
                     self.schedule_rows[i]["profile_var"].set(item["profile"])
             self._update_end_times()
+        if state.get("rainbow"):
+            for i, item in enumerate(state["rainbow"]):
+                if i < len(self.fkey_vars):
+                    self.fkey_vars[i].set(item["profile"])
 
     def _apply(self):
         if not os.path.isfile(self.var_path.get().strip()):
@@ -259,11 +296,15 @@ class MainWindow:
                 "profile": row["profile_var"].get(),
                 "startTime": row["start_var"].get(),
             })
+        rainbow = [
+            {"vbsName": f"F{i + 1}", "profile": var.get()}
+            for i, var in enumerate(self.fkey_vars)
+        ]
         return {
             "openRGBPath": self.var_path.get().strip(),
             "schedules": schedules,
             "extras": [],
-            "rainbow": [],
+            "rainbow": rainbow,
         }
 
 
