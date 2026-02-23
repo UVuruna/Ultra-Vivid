@@ -145,11 +145,10 @@ class MainWindow:
         self._update_end_times()
 
     def _update_end_times(self):
-        """Recalculate end time labels and check for gaps."""
+        """Recalculate end time labels."""
         rows = self.schedule_rows
         if not rows:
             return
-        gaps = []
         for i, row in enumerate(rows):
             next_start = rows[(i + 1) % len(rows)]["start_var"].get()
             try:
@@ -160,19 +159,7 @@ class MainWindow:
             except ValueError:
                 row["end_lbl"].config(text="??")
 
-            try:
-                nh2, nm2 = map(int, rows[(i + 1) % len(rows)]["start_var"].get().split(":"))
-                this_end_min = (nh2 * 60 + nm2 - 1) % (24 * 60)
-                actual_next = nh2 * 60 + nm2
-                if actual_next != (this_end_min + 1) % (24 * 60):
-                    gaps.append(i + 1)
-            except (ValueError, ZeroDivisionError):
-                pass
-
-        if gaps:
-            self.lbl_gap_warning.config(text=f"Moguce vremenske rupe kod slotova: {gaps}")
-        else:
-            self.lbl_gap_warning.config(text="")
+        self.lbl_gap_warning.config(text="")
 
     def _reset_schedule(self):
         self._rebuild_schedule_table(keep_profiles=True)
