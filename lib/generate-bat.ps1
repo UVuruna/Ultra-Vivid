@@ -4,13 +4,9 @@
 function New-TimeVbs {
     param (
         [array]$Items,
-        [int]$StartHour,
         [string]$OpenRGBPath,
         [bool]$WithRetry = $false
     )
-
-    $count = $Items.Count
-    $duration = [int][math]::Floor(24 / $count)
 
     $vbsContent = @"
 ' Auto-generated file - do not edit manually!
@@ -48,12 +44,19 @@ Select Case True
 "@
 
     # Generate Case conditions
-    for ($i = 0; $i -lt $count; $i++) {
+    for ($i = 0; $i -lt $Items.Count; $i++) {
         $item = $Items[$i]
         $prof = $item.profile
 
-        $start = [int](($StartHour + $duration * $i) % 24)
-        $end = [int](($StartHour + $duration * ($i + 1)) % 24)
+        # Parse start hour from "HH:MM"
+        $start = [int]($item.startTime -split ":")[0]
+
+        # End = next item's start hour (wraps around for last item)
+        if ($i -lt $Items.Count - 1) {
+            $end = [int]($Items[$i + 1].startTime -split ":")[0]
+        } else {
+            $end = [int]($Items[0].startTime -split ":")[0]
+        }
 
         if ($start -eq 0) {
             # Starts at midnight (e.g., 0-3)
@@ -86,7 +89,7 @@ WScript.Quit
 Write-Host "Generating autoprofile.vbs..." -ForegroundColor Yellow
 
 $autoprofileVbsPath = Join-Path $generatedPath "autoprofile.vbs"
-$autoprofileVbsContent = New-TimeVbs -Items $config.schedules.items -StartHour $config.schedules.startHour -OpenRGBPath $openRGBPath -WithRetry $true
+$autoprofileVbsContent = New-TimeVbs -Items $config.schedules.items -OpenRGBPath $openRGBPath -WithRetry $true
 $autoprofileVbsContent | Out-File -FilePath $autoprofileVbsPath -Encoding ASCII
 Write-Host "Created: generated/autoprofile.vbs" -ForegroundColor Green
 
@@ -94,7 +97,20 @@ Write-Host "Created: generated/autoprofile.vbs" -ForegroundColor Green
 Write-Host "Generating autorainbow.vbs..." -ForegroundColor Yellow
 
 $autorainbowVbsPath = Join-Path $generatedPath "autorainbow.vbs"
-$autorainbowVbsContent = New-TimeVbs -Items $config.rainbow.items -StartHour $config.rainbow.startHour -OpenRGBPath $openRGBPath -WithRetry $false
+# Rainbow items don't have startTime - synthesize from startHour for VBS generation
+$rainbowStart = [int]$config.rainbow.startHour
+$rainbowCount = $config.rainbow.items.Count
+$rainbowDuration = [int][math]::Floor(24 / $rainbowCount)
+$rainbowItemsWithTime = for ($i = 0; $i -lt $rainbowCount; $i++) {
+    $item = $config.rainbow.items[$i]
+    $hour = ($rainbowStart + $rainbowDuration * $i) % 24
+    [PSCustomObject]@{
+        vbsName   = $item.vbsName
+        profile   = $item.profile
+        startTime = "{0:D2}:00" -f $hour
+    }
+}
+$autorainbowVbsContent = New-TimeVbs -Items $rainbowItemsWithTime -OpenRGBPath $openRGBPath -WithRetry $false
 $autorainbowVbsContent | Out-File -FilePath $autorainbowVbsPath -Encoding ASCII
 Write-Host "Created: generated/autorainbow.vbs" -ForegroundColor Green
 
