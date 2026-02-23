@@ -104,7 +104,7 @@ Section "Desktop Shortcut" SecDesktop
 SectionEnd
 
 Section /o "Start with Windows" SecAutostart
-    ; Registry Run key — launches GUI on login
+    ; Registry Run key - launches GUI on login
     WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${APP_NAME}" "$\"$INSTDIR\${APP_EXE}$\""
 SectionEnd
 

@@ -22,3 +22,9 @@ env/
 .vscode/
 *.suo
 *.user
+
+# Claude Code local settings
+.claude/
+
+# Generated assets (rebuilt from logo.svg)
+assets/AutoOpenRGB.ico

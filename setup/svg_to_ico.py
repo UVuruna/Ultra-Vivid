@@ -21,7 +21,7 @@ from PIL import Image
 SETUP_DIR = Path(__file__).parent
 PROJECT_DIR = SETUP_DIR.parent
 
-SVG_PATH = PROJECT_DIR / "assets" / "AutoOpenRGB.svg"
+SVG_PATH = PROJECT_DIR / "assets" / "logo.svg"
 ICO_PATH = PROJECT_DIR / "assets" / "AutoOpenRGB.ico"
 
 # Standard Windows ICO sizes
@@ -92,7 +92,7 @@ def generate_ico() -> Path:
     )
 
     size_kb = ICO_PATH.stat().st_size / 1024
-    print(f"  {ICO_PATH.name} ({size_kb:.0f} KB) <- AutoOpenRGB.svg")
+    print(f"  {ICO_PATH.name} ({size_kb:.0f} KB) <- logo.svg")
 
     return ICO_PATH
 

@@ -29,7 +29,7 @@ PROJECT_DIR = SETUP_DIR.parent
 DIST_DIR = PROJECT_DIR / "dist"
 BUILD_DIR = PROJECT_DIR / "build"
 
-SVG_PATH = PROJECT_DIR / "assets" / "AutoOpenRGB.svg"
+SVG_PATH = PROJECT_DIR / "assets" / "logo.svg"
 ICO_PATH = PROJECT_DIR / "assets" / "AutoOpenRGB.ico"
 CERT_PATH = SETUP_DIR / "cert" / "AutoOpenRGB.pfx"
 PASSWORD_PATH = SETUP_DIR / "cert" / "password.txt"
@@ -80,7 +80,7 @@ def generate_ico():
 
     if not SVG_PATH.exists():
         print(f"  WARNING: SVG not found: {SVG_PATH}")
-        print("  Place AutoOpenRGB.svg in assets/ to generate the icon.")
+        print("  Place logo.svg in assets/ to generate the icon.")
         print("  Skipping ICO generation...")
         return
 
