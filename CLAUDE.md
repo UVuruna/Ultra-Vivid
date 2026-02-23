@@ -238,6 +238,31 @@ $configPath = "config.json"
 
 ---
 
+### Rule #7: Version Commits
+
+**Every commit must start with the current version number.**
+
+**Format:** `MAJOR.MINOR.PATCH type(scope): description`
+
+```
+0.1.10 feat(gui): add profile_scanner
+0.1.20 feat(setup): add build pipeline
+0.1.30 fix(gui): correct schedule gap detection
+```
+
+**Versioning rules:**
+- Version lives in `version.py` — **single source of truth**
+- Patch increments by **10** per commit: `0.1.10 → 0.1.20 → 0.1.30`
+- Update `version.py` **before** committing
+- Build pipeline (`setup/build.py`) reads version from `version.py` automatically
+
+**Procedure:**
+1. Finish work
+2. Update `version.py` to new version
+3. Commit: `git commit -m "0.1.20 feat(gui): description"`
+
+---
+
 ## GUIDELINES
 
 ### Guideline #1: Verify Before Claiming

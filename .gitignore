@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+
+# PyInstaller build output
+build/
+dist/
+
+# Setup certificates (private — never commit)
+setup/cert/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+*.suo
+*.user
