@@ -10,7 +10,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QTabWidget,
     QLabel, QLineEdit, QSpinBox, QComboBox, QPushButton,
-    QHBoxLayout, QVBoxLayout, QGridLayout,
+    QHBoxLayout, QVBoxLayout, QGridLayout, QListWidget,
     QFileDialog, QMessageBox,
 )
 
@@ -18,17 +18,29 @@ from gui.profile_scanner import scan_profiles
 from gui.config_writer import read_config, write_config
 from gui.runner import run_setup
 
-# Project root = parent of gui/ folder
-SCRIPT_DIR = Path(__file__).parent.parent
+# Project root and asset paths — handle PyInstaller frozen bundle
+if getattr(sys, 'frozen', False):
+    SCRIPT_DIR = Path(sys.executable).parent
+    _ASSETS_BASE = Path(sys._MEIPASS)
+else:
+    SCRIPT_DIR = Path(__file__).parent.parent
+    _ASSETS_BASE = SCRIPT_DIR
+
 CONFIG_PATH = SCRIPT_DIR / "config.json"
-ICO_PATH = SCRIPT_DIR / "assets" / "AutoOpenRGB.ico"
+ICO_PATH = _ASSETS_BASE / "assets" / "AutoOpenRGB.ico"
+
+# Standard OpenRGB install locations checked on startup
+_OPENRGB_CANDIDATES = [
+    Path(r"C:\Program Files\OpenRGB\OpenRGB.exe"),
+    Path(r"C:\Program Files (x86)\OpenRGB\OpenRGB.exe"),
+]
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Auto OpenRGB Setup")
-        self.resize(620, 480)
+        self.resize(620, 500)
 
         if ICO_PATH.exists():
             self.setWindowIcon(QIcon(str(ICO_PATH)))
@@ -60,9 +72,9 @@ class MainWindow(QMainWindow):
         self.tab_extras   = QWidget()
 
         self.tabs.addTab(self.tab_setup,    "Setup")
-        self.tabs.addTab(self.tab_schedule, "Raspored")
-        self.tabs.addTab(self.tab_fkeys,    "Tastature")
-        self.tabs.addTab(self.tab_extras,   "Ekstra")
+        self.tabs.addTab(self.tab_schedule, "Schedule")
+        self.tabs.addTab(self.tab_fkeys,    "Keyboard")
+        self.tabs.addTab(self.tab_extras,   "Extras")
 
         self._build_setup_tab()
         self._build_schedule_tab()
@@ -74,7 +86,7 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(self.tab_setup)
         layout.setContentsMargins(10, 15, 10, 10)
 
-        layout.addWidget(QLabel("OpenRGB putanja:"))
+        layout.addWidget(QLabel("OpenRGB path:"))
 
         path_row = QHBoxLayout()
         self.edit_path = QLineEdit()
@@ -87,14 +99,16 @@ class MainWindow(QMainWindow):
         self.lbl_status = QLabel("Status: -")
         layout.addWidget(self.lbl_status)
 
-        layout.addSpacing(10)
-        layout.addWidget(QLabel("Pronadjeni profili:"))
+        layout.addSpacing(8)
+        layout.addWidget(QLabel("Found profiles:"))
 
-        self.lbl_profiles = QLabel("(nema)")
-        self.lbl_profiles.setWordWrap(True)
-        layout.addWidget(self.lbl_profiles)
+        self.list_profiles = QListWidget()
+        self.list_profiles.setFixedHeight(130)
+        self.list_profiles.setSelectionMode(QListWidget.SelectionMode.NoSelection)
+        self.list_profiles.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        layout.addWidget(self.list_profiles)
 
-        btn_rescan = QPushButton("Reskenuj profile")
+        btn_rescan = QPushButton("Rescan profiles")
         btn_rescan.clicked.connect(self._rescan)
         layout.addWidget(btn_rescan, alignment=Qt.AlignmentFlag.AlignLeft)
 
@@ -105,7 +119,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(10, 10, 10, 10)
 
         ctrl = QHBoxLayout()
-        ctrl.addWidget(QLabel("Pocetni sat:"))
+        ctrl.addWidget(QLabel("Start hour:"))
         self.spin_start_hour = QSpinBox()
         self.spin_start_hour.setRange(0, 23)
         self.spin_start_hour.setValue(3)
@@ -113,7 +127,7 @@ class MainWindow(QMainWindow):
         ctrl.addWidget(self.spin_start_hour)
 
         ctrl.addSpacing(15)
-        ctrl.addWidget(QLabel("Broj slotova:"))
+        ctrl.addWidget(QLabel("Slot count:"))
         self.spin_slot_count = QSpinBox()
         self.spin_slot_count.setRange(2, 24)
         self.spin_slot_count.setValue(8)
@@ -121,7 +135,7 @@ class MainWindow(QMainWindow):
         self.spin_slot_count.valueChanged.connect(lambda _: self._rebuild_schedule_table())
         ctrl.addWidget(self.spin_slot_count)
 
-        btn_reset = QPushButton("Resetuj")
+        btn_reset = QPushButton("Reset")
         btn_reset.clicked.connect(self._reset_schedule)
         ctrl.addWidget(btn_reset)
         ctrl.addStretch()
@@ -129,7 +143,7 @@ class MainWindow(QMainWindow):
 
         # Column header
         hdr = QHBoxLayout()
-        for text, w in [("Slot", 40), ("Pocetak", 70), ("Kraj", 70), ("Profil", 180)]:
+        for text, w in [("Slot", 40), ("Start", 70), ("End", 70), ("Profile", 180)]:
             lbl = QLabel(text)
             lbl.setFixedWidth(w)
             hdr.addWidget(lbl)
@@ -214,7 +228,6 @@ class MainWindow(QMainWindow):
                 row["end_lbl"].setText(f"{end_min // 60:02d}:{end_min % 60:02d}")
             except ValueError:
                 row["end_lbl"].setText("??")
-
         self.lbl_gap_warning.setText("")
 
     def _reset_schedule(self):
@@ -223,7 +236,7 @@ class MainWindow(QMainWindow):
     def _build_fkeys_tab(self):
         layout = QVBoxLayout(self.tab_fkeys)
         layout.setContentsMargins(10, 15, 10, 10)
-        layout.addWidget(QLabel("Dodeli profil na F tastere:"))
+        layout.addWidget(QLabel("Assign profiles to F-keys:"))
 
         grid = QGridLayout()
         grid.setSpacing(8)
@@ -241,7 +254,7 @@ class MainWindow(QMainWindow):
             grid.addWidget(combo, row, col * 2 + 1)
 
         layout.addLayout(grid)
-        info = QLabel("VBS fajlovi se generisu u rainbow/")
+        info = QLabel("VBS files are generated in rainbow/")
         info.setStyleSheet("color: gray;")
         layout.addWidget(info)
         layout.addStretch()
@@ -249,7 +262,7 @@ class MainWindow(QMainWindow):
     def _build_extras_tab(self):
         layout = QVBoxLayout(self.tab_extras)
         layout.setContentsMargins(10, 15, 10, 10)
-        layout.addWidget(QLabel("Rucni profili (pozivaju se VBS-om):"))
+        layout.addWidget(QLabel("Manual profiles (called via VBS shortcut):"))
 
         self.extras_container = QWidget()
         self.extras_layout = QVBoxLayout(self.extras_container)
@@ -257,7 +270,7 @@ class MainWindow(QMainWindow):
         self.extras_layout.setSpacing(4)
         layout.addWidget(self.extras_container)
 
-        btn_add = QPushButton("+ Dodaj novi")
+        btn_add = QPushButton("+ Add new")
         btn_add.clicked.connect(lambda: self._add_extra_row())
         layout.addWidget(btn_add, alignment=Qt.AlignmentFlag.AlignLeft)
 
@@ -268,12 +281,12 @@ class MainWindow(QMainWindow):
         row_layout = QHBoxLayout(row_widget)
         row_layout.setContentsMargins(0, 0, 0, 0)
 
-        row_layout.addWidget(QLabel("Naziv:"))
+        row_layout.addWidget(QLabel("Name:"))
         name_edit = QLineEdit(name)
         name_edit.setFixedWidth(100)
         row_layout.addWidget(name_edit)
 
-        row_layout.addWidget(QLabel("Profil:"))
+        row_layout.addWidget(QLabel("Profile:"))
         combo = QComboBox()
         combo.addItems(self.profiles)
         combo.setFixedWidth(180)
@@ -302,11 +315,11 @@ class MainWindow(QMainWindow):
         bar_layout = QHBoxLayout(bar)
         bar_layout.setContentsMargins(0, 5, 0, 10)
 
-        self.lbl_bottom_status = QLabel("Spreman.")
+        self.lbl_bottom_status = QLabel("Ready.")
         bar_layout.addWidget(self.lbl_bottom_status)
         bar_layout.addStretch()
 
-        btn_apply = QPushButton("Primeni")
+        btn_apply = QPushButton("Apply")
         btn_apply.clicked.connect(self._apply)
         bar_layout.addWidget(btn_apply)
 
@@ -316,10 +329,17 @@ class MainWindow(QMainWindow):
     # Actions
     # ------------------------------------------------------------------
 
+    def _auto_detect_openrgb(self) -> str | None:
+        """Check standard install locations for OpenRGB.exe."""
+        for p in _OPENRGB_CANDIDATES:
+            if p.exists():
+                return str(p)
+        return None
+
     def _browse_openrgb(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Izaberi OpenRGB.exe",
+            "Select OpenRGB.exe",
             "",
             "OpenRGB executable (OpenRGB.exe);;All files (*.*)",
         )
@@ -330,18 +350,20 @@ class MainWindow(QMainWindow):
     def _rescan(self):
         path = self.edit_path.text().strip()
         if not os.path.isfile(path):
-            self.lbl_status.setText("Status: Fajl nije pronadjen")
+            self.lbl_status.setText("Status: File not found")
             self.profiles = []
-            self.lbl_profiles.setText("(nema)")
+            self.list_profiles.clear()
             return
 
         self.profiles = scan_profiles(path)
         if self.profiles:
-            self.lbl_status.setText(f"Status: OpenRGB pronadjen - {len(self.profiles)} profila")
-            self.lbl_profiles.setText(", ".join(self.profiles))
+            self.lbl_status.setText(f"Status: OpenRGB found — {len(self.profiles)} profiles")
+            self.list_profiles.clear()
+            for p in self.profiles:
+                self.list_profiles.addItem(p)
         else:
-            self.lbl_status.setText("Status: OpenRGB nadjen, ali nema .orp profila")
-            self.lbl_profiles.setText("(nema)")
+            self.lbl_status.setText("Status: OpenRGB found, but no .orp profiles")
+            self.list_profiles.clear()
         self._refresh_dropdowns()
 
     def _refresh_dropdowns(self):
@@ -371,47 +393,52 @@ class MainWindow(QMainWindow):
 
     def _load_existing_config(self):
         state = read_config(str(CONFIG_PATH))
-        if not state:
-            return
-        self.edit_path.setText(state["openRGBPath"])
-        self._rescan()
-        if state.get("schedules"):
-            self.spin_slot_count.setValue(len(state["schedules"]))
-            self._rebuild_schedule_table()
-            for i, item in enumerate(state["schedules"]):
-                if i < len(self.schedule_rows):
-                    self.schedule_rows[i]["start_edit"].setText(item["startTime"])
-                    profile = item["profile"]
-                    if profile in self.profiles:
-                        self.schedule_rows[i]["profile_combo"].setCurrentText(profile)
-            self._update_end_times()
-        if state.get("rainbow"):
-            for i, item in enumerate(state["rainbow"]):
-                if i < len(self.fkey_combos):
-                    profile = item["profile"]
-                    if profile in self.profiles:
-                        self.fkey_combos[i].setCurrentText(profile)
-        for item in state.get("extras", []):
-            self._add_extra_row(name=item.get("vbsName", ""), profile=item.get("profile", ""))
+        if state:
+            self.edit_path.setText(state["openRGBPath"])
+            self._rescan()
+            if state.get("schedules"):
+                self.spin_slot_count.setValue(len(state["schedules"]))
+                self._rebuild_schedule_table()
+                for i, item in enumerate(state["schedules"]):
+                    if i < len(self.schedule_rows):
+                        self.schedule_rows[i]["start_edit"].setText(item["startTime"])
+                        profile = item["profile"]
+                        if profile in self.profiles:
+                            self.schedule_rows[i]["profile_combo"].setCurrentText(profile)
+                self._update_end_times()
+            if state.get("rainbow"):
+                for i, item in enumerate(state["rainbow"]):
+                    if i < len(self.fkey_combos):
+                        profile = item["profile"]
+                        if profile in self.profiles:
+                            self.fkey_combos[i].setCurrentText(profile)
+            for item in state.get("extras", []):
+                self._add_extra_row(name=item.get("vbsName", ""), profile=item.get("profile", ""))
+        else:
+            # No config — try to auto-detect OpenRGB from standard install locations
+            detected = self._auto_detect_openrgb()
+            if detected:
+                self.edit_path.setText(detected)
+                self._rescan()
 
     def _apply(self):
         if not os.path.isfile(self.edit_path.text().strip()):
-            QMessageBox.critical(self, "Greska", "OpenRGB putanja nije validna.")
+            QMessageBox.critical(self, "Error", "OpenRGB path is not valid.")
             return
-        self.lbl_bottom_status.setText("Pisanje config.json...")
+        self.lbl_bottom_status.setText("Writing config.json...")
         QApplication.processEvents()
 
         state = self._collect_state()
         write_config(str(CONFIG_PATH), state)
 
-        self.lbl_bottom_status.setText("Pokretanje setup.ps1 (Admin)...")
+        self.lbl_bottom_status.setText("Running setup.ps1 (Admin)...")
         QApplication.processEvents()
 
         ok, msg = run_setup(str(SCRIPT_DIR))
         if ok:
-            self.lbl_bottom_status.setText(f"OK - {msg}")
+            self.lbl_bottom_status.setText(f"OK — {msg}")
         else:
-            self.lbl_bottom_status.setText(f"Greska - {msg}")
+            self.lbl_bottom_status.setText(f"Error — {msg}")
 
     def _collect_state(self) -> dict:
         """Collect current GUI state into dict for config_writer."""

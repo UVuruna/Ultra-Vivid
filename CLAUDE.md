@@ -242,24 +242,27 @@ $configPath = "config.json"
 
 **Every commit must start with the current version number.**
 
-**Format:** `MAJOR.MINOR.PATCH type(scope): description`
+**Format:** `MAJOR.MINOR.NNN type(scope): description`
+
+Patch is always **3 digits**, zero-padded:
 
 ```
-0.1.10 feat(gui): add profile_scanner
-0.1.20 feat(setup): add build pipeline
-0.1.30 fix(gui): correct schedule gap detection
+0.1.010 feat(gui): add profile_scanner
+0.1.020 feat(setup): add build pipeline
+0.1.030 fix(gui): correct schedule gap detection
 ```
 
 **Versioning rules:**
 - Version lives in `version.py` — **single source of truth**
-- Patch increments by **10** per commit: `0.1.10 → 0.1.20 → 0.1.30`
+- Patch increments by **10** per commit: `0.1.010 → 0.1.020 → 0.1.030`
+- Patch is **zero-padded to 3 digits**: `010`, `020`, `030`, ... `100`, `110`
 - Update `version.py` **before** committing
 - Build pipeline (`setup/build.py`) reads version from `version.py` automatically
 
 **Procedure:**
 1. Finish work
 2. Update `version.py` to new version
-3. Commit: `git commit -m "0.1.20 feat(gui): description"`
+3. Commit: `git commit -m "0.1.030 feat(gui): description"`
 
 ---
 
