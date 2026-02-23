@@ -64,6 +64,12 @@ flowchart LR
   📁 rainbow/                 ← Rainbow profiles
     📝 __index.md
     🔧 *.vbs (auto-generated)
+  📁 gui/                     ← GUI Setup Wizard (Python)
+    📝 __index.md
+    🔧 gui.py
+    🔧 profile_scanner.py
+    🔧 config_writer.py
+    🔧 runner.py
 
 📁 Windows Startup/
   🔧 OpenRGB-Server.vbs       ← Auto-generated
@@ -209,6 +215,7 @@ If still wrong, check your system clock settings.
 | `lib/` | [lib/__index.md](lib/__index.md) | Helper scripts for setup.ps1 |
 | `cycle/` | [cycle/__index.md](cycle/__index.md) | VBS for daily profiles |
 | `rainbow/` | [rainbow/__index.md](rainbow/__index.md) | VBS for rainbow profiles |
+| `gui/` | [gui/__index.md](gui/__index.md) | GUI Setup Wizard (Python) |
 
 ### Script Documentation
 
