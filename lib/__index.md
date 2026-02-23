@@ -11,9 +11,10 @@ This folder contains modular PowerShell scripts that `setup.ps1` calls in sequen
 | File | Documentation | Description |
 |------|---------------|-------------|
 | init.ps1 | [init.md](init.md) | Initialization - config, folders, cleanup |
-| generate-bat.ps1 | [generate-bat.md](generate-bat.md) | Generates autoprofile.vbs and autorainbow.vbs |
-| generate-vbs.ps1 | [generate-vbs.md](generate-vbs.md) | Generates cycle and rainbow VBS files |
-| create-tasks.ps1 | [create-tasks.md](create-tasks.md) | Creates Task Scheduler tasks |
+| generate-bat.ps1 | [generate-bat.md](generate-bat.md) | Generates autoprofile.vbs |
+| generate-vbs.ps1 | [generate-vbs.md](generate-vbs.md) | Generates cycle and shortcut VBS files |
+| create-tasks.ps1 | [create-tasks.md](create-tasks.md) | Creates Task Scheduler tasks (schedule) |
+| generate-hotkeys.ps1 | [generate-hotkeys.md](generate-hotkeys.md) | Generates hotkey daemon + task |
 
 ## Execution Order
 
@@ -23,6 +24,7 @@ flowchart LR
     B --> C[generate-bat.ps1]
     C --> D[generate-vbs.ps1]
     D --> E[create-tasks.ps1]
+    E --> F[generate-hotkeys.ps1]
 ```
 
 ## Shared Variables

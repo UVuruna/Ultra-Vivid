@@ -1,4 +1,4 @@
-# generate-bat.ps1 - Generate autoprofile.vbs and autorainbow.vbs
+# generate-bat.ps1 - Generate autoprofile.vbs (time-based profile switcher)
 
 # Function to generate VBS content
 function New-TimeVbs {
@@ -93,37 +93,11 @@ $autoprofileVbsContent = New-TimeVbs -Items $config.schedules.items -OpenRGBPath
 $autoprofileVbsContent | Out-File -FilePath $autoprofileVbsPath -Encoding ASCII
 Write-Host "Created: generated/autoprofile.vbs" -ForegroundColor Green
 
-# Generate autorainbow.vbs (no retry - manual use)
-Write-Host "Generating autorainbow.vbs..." -ForegroundColor Yellow
-
-$autorainbowVbsPath = Join-Path $generatedPath "autorainbow.vbs"
-# Rainbow items don't have startTime - synthesize from startHour for VBS generation
-$rainbowStart = [int]$config.rainbow.startHour
-$rainbowCount = $config.rainbow.items.Count
-$rainbowDuration = [int][math]::Floor(24 / $rainbowCount)
-$rainbowItemsWithTime = for ($i = 0; $i -lt $rainbowCount; $i++) {
-    $item = $config.rainbow.items[$i]
-    $hour = ($rainbowStart + $rainbowDuration * $i) % 24
-    [PSCustomObject]@{
-        vbsName   = $item.vbsName
-        profile   = $item.profile
-        startTime = "{0:D2}:00" -f $hour
+# Clean up old generated files if they exist
+foreach ($oldFile in @("autoprofile.bat", "autorainbow.bat", "autorainbow.vbs")) {
+    $oldPath = Join-Path $generatedPath $oldFile
+    if (Test-Path $oldPath) {
+        Remove-Item $oldPath -Force
+        Write-Host "Removed old: generated/$oldFile" -ForegroundColor DarkGray
     }
-}
-$autorainbowVbsContent = New-TimeVbs -Items $rainbowItemsWithTime -OpenRGBPath $openRGBPath -WithRetry $false
-$autorainbowVbsContent | Out-File -FilePath $autorainbowVbsPath -Encoding ASCII
-Write-Host "Created: generated/autorainbow.vbs" -ForegroundColor Green
-
-# Clean up old BAT files if they exist
-$oldAutoprofileBat = Join-Path $generatedPath "autoprofile.bat"
-$oldAutorainbowBat = Join-Path $generatedPath "autorainbow.bat"
-
-if (Test-Path $oldAutoprofileBat) {
-    Remove-Item $oldAutoprofileBat -Force
-    Write-Host "Removed old: generated/autoprofile.bat" -ForegroundColor DarkGray
-}
-
-if (Test-Path $oldAutorainbowBat) {
-    Remove-Item $oldAutorainbowBat -Force
-    Write-Host "Removed old: generated/autorainbow.bat" -ForegroundColor DarkGray
 }

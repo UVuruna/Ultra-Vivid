@@ -48,10 +48,10 @@ WScript.Quit
     Write-Host "Created: cycle\$vbsName -> $prof" -ForegroundColor Green
 }
 
-# VBS files for rainbow profiles
+# VBS files for shortcut profiles (one per key assignment)
 Write-Host "Generating VBS files in rainbow folder..." -ForegroundColor Yellow
 
-foreach ($e in $config.rainbow.items) {
+foreach ($e in $config.shortcuts.items) {
     $vbsName = $e.vbsName + ".vbs"
     $vbsPath = Join-Path $rainbowPath $vbsName
     $prof = $e.profile

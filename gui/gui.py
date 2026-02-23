@@ -9,7 +9,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QTabWidget,
-    QLabel, QLineEdit, QSpinBox, QComboBox, QPushButton,
+    QLabel, QLineEdit, QSpinBox, QComboBox, QPushButton, QCheckBox,
     QHBoxLayout, QVBoxLayout, QGridLayout, QListWidget,
     QFileDialog, QMessageBox,
 )
@@ -35,19 +35,30 @@ _OPENRGB_CANDIDATES = [
     Path(r"C:\Program Files (x86)\OpenRGB\OpenRGB.exe"),
 ]
 
+# Key row definitions: (display option, keyRow value, 12 labels, 12 VK names for info)
+_KEY_ROWS = [
+    ("F1-F12", "F",
+     ["F1","F2","F3","F4","F5","F6","F7","F8","F9","F10","F11","F12"]),
+    ("Number row  (1-=)", "num",
+     ["1","2","3","4","5","6","7","8","9","0","-","="]),
+]
+
+_MODIFIERS = ["Shift", "Ctrl+Shift", "Alt+Shift"]
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Auto OpenRGB Setup")
-        self.resize(620, 500)
+        self.resize(640, 540)
 
         if ICO_PATH.exists():
             self.setWindowIcon(QIcon(str(ICO_PATH)))
 
         self.profiles: list[str] = []
         self.schedule_rows: list[dict] = []  # {"start_edit", "end_lbl", "profile_combo"}
-        self.fkey_combos: list[QComboBox] = []  # 12 items, F1-F12
+        self.fkey_combos: list[QComboBox] = []   # 12 items
+        self.fkey_labels: list[QLabel] = []       # 12 items — updated when key row changes
         self.extra_rows: list[dict] = []  # {"name_edit", "profile_combo", "widget"}
 
         self._build_ui()
@@ -115,6 +126,19 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(self.tab_schedule)
         layout.setContentsMargins(10, 10, 10, 10)
 
+        # Enable checkbox
+        self.cb_schedule_enabled = QCheckBox("Enable time-based schedule")
+        self.cb_schedule_enabled.setChecked(True)
+        self.cb_schedule_enabled.toggled.connect(self._on_schedule_enabled_changed)
+        layout.addWidget(self.cb_schedule_enabled)
+
+        layout.addSpacing(6)
+
+        # Schedule controls container (toggled by checkbox)
+        self._schedule_body = QWidget()
+        body_layout = QVBoxLayout(self._schedule_body)
+        body_layout.setContentsMargins(0, 0, 0, 0)
+
         ctrl = QHBoxLayout()
         ctrl.addWidget(QLabel("Start hour:"))
         self.spin_start_hour = QSpinBox()
@@ -136,7 +160,7 @@ class MainWindow(QMainWindow):
         btn_reset.clicked.connect(self._reset_schedule)
         ctrl.addWidget(btn_reset)
         ctrl.addStretch()
-        layout.addLayout(ctrl)
+        body_layout.addLayout(ctrl)
 
         # Column header
         hdr = QHBoxLayout()
@@ -145,20 +169,25 @@ class MainWindow(QMainWindow):
             lbl.setFixedWidth(w)
             hdr.addWidget(lbl)
         hdr.addStretch()
-        layout.addLayout(hdr)
+        body_layout.addLayout(hdr)
 
         self.schedule_container = QWidget()
         self.schedule_layout = QVBoxLayout(self.schedule_container)
         self.schedule_layout.setContentsMargins(0, 0, 0, 0)
         self.schedule_layout.setSpacing(2)
-        layout.addWidget(self.schedule_container)
+        body_layout.addWidget(self.schedule_container)
 
         self.lbl_gap_warning = QLabel("")
         self.lbl_gap_warning.setStyleSheet("color: orange;")
-        layout.addWidget(self.lbl_gap_warning)
+        body_layout.addWidget(self.lbl_gap_warning)
 
-        layout.addStretch()
+        body_layout.addStretch()
+        layout.addWidget(self._schedule_body)
+
         self._rebuild_schedule_table()
+
+    def _on_schedule_enabled_changed(self, enabled: bool):
+        self._schedule_body.setEnabled(enabled)
 
     def _rebuild_schedule_table(self, keep_profiles: bool = False):
         """Rebuild schedule rows from current slot count and start hour."""
@@ -233,28 +262,79 @@ class MainWindow(QMainWindow):
     def _build_fkeys_tab(self):
         layout = QVBoxLayout(self.tab_fkeys)
         layout.setContentsMargins(10, 15, 10, 10)
-        layout.addWidget(QLabel("Assign profiles to F-keys:"))
 
+        # Enable checkbox
+        self.cb_shortcuts_enabled = QCheckBox("Enable keyboard shortcuts")
+        self.cb_shortcuts_enabled.setChecked(True)
+        self.cb_shortcuts_enabled.toggled.connect(self._on_shortcuts_enabled_changed)
+        layout.addWidget(self.cb_shortcuts_enabled)
+
+        layout.addSpacing(6)
+
+        # Options body (toggled by checkbox)
+        self._shortcuts_body = QWidget()
+        body_layout = QVBoxLayout(self._shortcuts_body)
+        body_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Modifier + key row selectors
+        opts_row = QHBoxLayout()
+        opts_row.addWidget(QLabel("Modifier:"))
+        self.combo_modifier = QComboBox()
+        self.combo_modifier.addItems(_MODIFIERS)
+        self.combo_modifier.setFixedWidth(120)
+        opts_row.addWidget(self.combo_modifier)
+
+        opts_row.addSpacing(20)
+        opts_row.addWidget(QLabel("Key row:"))
+        self.combo_keyrow = QComboBox()
+        for label, _, _ in _KEY_ROWS:
+            self.combo_keyrow.addItem(label)
+        self.combo_keyrow.setFixedWidth(160)
+        self.combo_keyrow.currentIndexChanged.connect(self._on_keyrow_changed)
+        opts_row.addWidget(self.combo_keyrow)
+        opts_row.addStretch()
+        body_layout.addLayout(opts_row)
+
+        body_layout.addSpacing(8)
+
+        # Grid of 12 key assignments
         grid = QGridLayout()
         grid.setSpacing(8)
         self.fkey_combos = []
+        self.fkey_labels = []
 
+        initial_labels = _KEY_ROWS[0][2]
         for i in range(12):
             row, col = divmod(i, 2)
-            lbl = QLabel(f"F{i + 1}:")
+            lbl = QLabel(f"{initial_labels[i]}:")
             lbl.setFixedWidth(35)
             combo = QComboBox()
             combo.addItems(self.profiles)
             combo.setFixedWidth(180)
+            self.fkey_labels.append(lbl)
             self.fkey_combos.append(combo)
             grid.addWidget(lbl,   row, col * 2)
             grid.addWidget(combo, row, col * 2 + 1)
 
-        layout.addLayout(grid)
-        info = QLabel("VBS files are generated in rainbow/")
+        body_layout.addLayout(grid)
+        layout.addWidget(self._shortcuts_body)
+
+        info = QLabel(
+            "Hotkey daemon (hotkeys.ps1) is generated in rainbow/ and runs at login via Task Scheduler."
+        )
         info.setStyleSheet("color: gray;")
+        info.setWordWrap(True)
         layout.addWidget(info)
         layout.addStretch()
+
+    def _on_shortcuts_enabled_changed(self, enabled: bool):
+        self._shortcuts_body.setEnabled(enabled)
+
+    def _on_keyrow_changed(self, index: int):
+        """Update key labels in the grid when key row selection changes."""
+        labels = _KEY_ROWS[index][2]
+        for i, lbl in enumerate(self.fkey_labels):
+            lbl.setText(f"{labels[i]}:")
 
     def _build_extras_tab(self):
         layout = QVBoxLayout(self.tab_extras)
@@ -393,22 +473,37 @@ class MainWindow(QMainWindow):
         if state:
             self.edit_path.setText(state["openRGBPath"])
             self._rescan()
-            if state.get("schedules"):
-                self.spin_slot_count.setValue(len(state["schedules"]))
+
+            # Schedule
+            sched = state.get("schedules", {})
+            self.cb_schedule_enabled.setChecked(sched.get("enabled", True))
+            sched_items = sched.get("items", [])
+            if sched_items:
+                self.spin_slot_count.setValue(len(sched_items))
                 self._rebuild_schedule_table()
-                for i, item in enumerate(state["schedules"]):
+                for i, item in enumerate(sched_items):
                     if i < len(self.schedule_rows):
                         self.schedule_rows[i]["start_edit"].setText(item["startTime"])
                         profile = item["profile"]
                         if profile in self.profiles:
                             self.schedule_rows[i]["profile_combo"].setCurrentText(profile)
                 self._update_end_times()
-            if state.get("rainbow"):
-                for i, item in enumerate(state["rainbow"]):
-                    if i < len(self.fkey_combos):
-                        profile = item["profile"]
-                        if profile in self.profiles:
-                            self.fkey_combos[i].setCurrentText(profile)
+
+            # Shortcuts
+            shorts = state.get("shortcuts", {})
+            self.cb_shortcuts_enabled.setChecked(shorts.get("enabled", True))
+            modifier = shorts.get("modifier", "Shift")
+            if modifier in _MODIFIERS:
+                self.combo_modifier.setCurrentText(modifier)
+            key_row = shorts.get("keyRow", "F")
+            kr_index = next((i for i, (_, v, _) in enumerate(_KEY_ROWS) if v == key_row), 0)
+            self.combo_keyrow.setCurrentIndex(kr_index)
+            for i, item in enumerate(shorts.get("items", [])):
+                if i < len(self.fkey_combos):
+                    profile = item.get("profile", "")
+                    if profile in self.profiles:
+                        self.fkey_combos[i].setCurrentText(profile)
+
             for item in state.get("extras", []):
                 self._add_extra_row(name=item.get("vbsName", ""), profile=item.get("profile", ""))
         else:
@@ -439,7 +534,7 @@ class MainWindow(QMainWindow):
 
     def _collect_state(self) -> dict:
         """Collect current GUI state into dict for config_writer."""
-        schedules = [
+        schedules_items = [
             {
                 "taskName": f"OpenRGB slot{i + 1}",
                 "vbsName": f"slot{i + 1}",
@@ -448,20 +543,35 @@ class MainWindow(QMainWindow):
             }
             for i, row in enumerate(self.schedule_rows)
         ]
-        rainbow = [
-            {"vbsName": f"F{i + 1}", "profile": combo.currentText()}
+
+        kr_index = self.combo_keyrow.currentIndex()
+        key_row_value = _KEY_ROWS[kr_index][1]
+        key_row_labels = _KEY_ROWS[kr_index][2]
+
+        shortcuts_items = [
+            {"vbsName": key_row_labels[i], "profile": combo.currentText()}
             for i, combo in enumerate(self.fkey_combos)
         ]
+
         extras = [
             {"vbsName": row["name_edit"].text(), "profile": row["profile_combo"].currentText()}
             for row in self.extra_rows
             if row["name_edit"].text().strip()
         ]
+
         return {
             "openRGBPath": self.edit_path.text().strip(),
-            "schedules": schedules,
+            "schedules": {
+                "enabled": self.cb_schedule_enabled.isChecked(),
+                "items": schedules_items,
+            },
+            "shortcuts": {
+                "enabled": self.cb_shortcuts_enabled.isChecked(),
+                "modifier": self.combo_modifier.currentText(),
+                "keyRow": key_row_value,
+                "items": shortcuts_items,
+            },
             "extras": extras,
-            "rainbow": rainbow,
         }
 
 

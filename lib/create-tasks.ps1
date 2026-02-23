@@ -1,5 +1,10 @@
 # create-tasks.ps1 - Create Task Scheduler tasks
 
+if (-not $config.schedules.enabled) {
+    Write-Host "Schedule disabled - skipping Task Scheduler setup." -ForegroundColor DarkGray
+    return
+}
+
 # Autoprofile task (at log on + resume from sleep)
 Write-Host "Creating autoprofile task..." -ForegroundColor Yellow
 
