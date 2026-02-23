@@ -2,30 +2,42 @@
 # Entry point: python -m gui.gui  (from project root)
 
 import os
-import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+import sys
+from pathlib import Path
+
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QTabWidget,
+    QLabel, QLineEdit, QSpinBox, QComboBox, QPushButton,
+    QHBoxLayout, QVBoxLayout, QGridLayout,
+    QFileDialog, QMessageBox,
+)
 
 from gui.profile_scanner import scan_profiles
 from gui.config_writer import read_config, write_config
 from gui.runner import run_setup
 
 # Project root = parent of gui/ folder
-SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CONFIG_PATH = os.path.join(SCRIPT_DIR, "config.json")
+SCRIPT_DIR = Path(__file__).parent.parent
+CONFIG_PATH = SCRIPT_DIR / "config.json"
+ICO_PATH = SCRIPT_DIR / "assets" / "AutoOpenRGB.ico"
 
 
-class MainWindow:
-    def __init__(self, root: tk.Tk):
-        self.root = root
-        self.root.title("Auto OpenRGB Setup")
-        self.root.resizable(False, False)
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Auto OpenRGB Setup")
+        self.resize(620, 480)
+
+        if ICO_PATH.exists():
+            self.setWindowIcon(QIcon(str(ICO_PATH)))
 
         self.profiles: list[str] = []
-        self.schedule_rows: list[dict] = []  # each: {"start_var", "end_lbl", "profile_var"}
-        self.fkey_vars: list[tk.StringVar] = []  # 12 items, F1-F12
-        self.extra_rows: list[dict] = []  # each: {"name_var", "profile_var", "frame"}
-        self.var_slot_count = tk.IntVar(value=8)
-        self.var_start_hour = tk.IntVar(value=3)
+        self.schedule_rows: list[dict] = []  # {"start_edit", "end_lbl", "profile_combo"}
+        self.fkey_combos: list[QComboBox] = []  # 12 items, F1-F12
+        self.extra_rows: list[dict] = []  # {"name_edit", "profile_combo", "widget"}
+
         self._build_ui()
         self._load_existing_config()
 
@@ -34,18 +46,23 @@ class MainWindow:
     # ------------------------------------------------------------------
 
     def _build_ui(self):
-        notebook = ttk.Notebook(self.root)
-        notebook.pack(fill="both", expand=True, padx=10, pady=10)
+        central = QWidget()
+        self.setCentralWidget(central)
+        self._main_layout = QVBoxLayout(central)
+        self._main_layout.setContentsMargins(10, 10, 10, 0)
 
-        self.tab_setup = ttk.Frame(notebook)
-        self.tab_schedule = ttk.Frame(notebook)
-        self.tab_fkeys = ttk.Frame(notebook)
-        self.tab_extras = ttk.Frame(notebook)
+        self.tabs = QTabWidget()
+        self._main_layout.addWidget(self.tabs)
 
-        notebook.add(self.tab_setup,    text="Setup")
-        notebook.add(self.tab_schedule, text="Raspored")
-        notebook.add(self.tab_fkeys,    text="Tastature")
-        notebook.add(self.tab_extras,   text="Ekstra")
+        self.tab_setup    = QWidget()
+        self.tab_schedule = QWidget()
+        self.tab_fkeys    = QWidget()
+        self.tab_extras   = QWidget()
+
+        self.tabs.addTab(self.tab_setup,    "Setup")
+        self.tabs.addTab(self.tab_schedule, "Raspored")
+        self.tabs.addTab(self.tab_fkeys,    "Tastature")
+        self.tabs.addTab(self.tab_extras,   "Ekstra")
 
         self._build_setup_tab()
         self._build_schedule_tab()
@@ -54,94 +71,132 @@ class MainWindow:
         self._build_bottom_bar()
 
     def _build_setup_tab(self):
-        f = self.tab_setup
+        layout = QVBoxLayout(self.tab_setup)
+        layout.setContentsMargins(10, 15, 10, 10)
 
-        ttk.Label(f, text="OpenRGB putanja:").grid(row=0, column=0, sticky="w", padx=10, pady=(15, 2))
+        layout.addWidget(QLabel("OpenRGB putanja:"))
 
-        self.var_path = tk.StringVar()
-        path_entry = ttk.Entry(f, textvariable=self.var_path, width=55)
-        path_entry.grid(row=1, column=0, padx=(10, 5), pady=2, sticky="ew")
+        path_row = QHBoxLayout()
+        self.edit_path = QLineEdit()
+        path_row.addWidget(self.edit_path)
+        btn_browse = QPushButton("Browse...")
+        btn_browse.clicked.connect(self._browse_openrgb)
+        path_row.addWidget(btn_browse)
+        layout.addLayout(path_row)
 
-        ttk.Button(f, text="Browse...", command=self._browse_openrgb).grid(row=1, column=1, padx=(0, 10), pady=2)
+        self.lbl_status = QLabel("Status: -")
+        layout.addWidget(self.lbl_status)
 
-        self.lbl_status = ttk.Label(f, text="Status: -")
-        self.lbl_status.grid(row=2, column=0, columnspan=2, sticky="w", padx=10, pady=5)
+        layout.addSpacing(10)
+        layout.addWidget(QLabel("Pronadjeni profili:"))
 
-        ttk.Label(f, text="Pronadjeni profili:").grid(row=3, column=0, sticky="w", padx=10, pady=(10, 2))
+        self.lbl_profiles = QLabel("(nema)")
+        self.lbl_profiles.setWordWrap(True)
+        layout.addWidget(self.lbl_profiles)
 
-        self.lbl_profiles = ttk.Label(f, text="(nema)", wraplength=450, justify="left")
-        self.lbl_profiles.grid(row=4, column=0, columnspan=2, sticky="w", padx=10, pady=2)
+        btn_rescan = QPushButton("Reskenuj profile")
+        btn_rescan.clicked.connect(self._rescan)
+        layout.addWidget(btn_rescan, alignment=Qt.AlignmentFlag.AlignLeft)
 
-        ttk.Button(f, text="Reskenuj profile", command=self._rescan).grid(
-            row=5, column=0, sticky="w", padx=10, pady=10
-        )
+        layout.addStretch()
 
-    # Placeholder build methods - implemented in Tasks 8-10
     def _build_schedule_tab(self):
-        f = self.tab_schedule
+        layout = QVBoxLayout(self.tab_schedule)
+        layout.setContentsMargins(10, 10, 10, 10)
 
-        ctrl = ttk.Frame(f)
-        ctrl.pack(fill="x", padx=10, pady=10)
+        ctrl = QHBoxLayout()
+        ctrl.addWidget(QLabel("Pocetni sat:"))
+        self.spin_start_hour = QSpinBox()
+        self.spin_start_hour.setRange(0, 23)
+        self.spin_start_hour.setValue(3)
+        self.spin_start_hour.setFixedWidth(55)
+        ctrl.addWidget(self.spin_start_hour)
 
-        ttk.Label(ctrl, text="Pocetni sat:").pack(side="left")
-        ttk.Spinbox(ctrl, from_=0, to=23, width=4, textvariable=self.var_start_hour).pack(side="left", padx=5)
+        ctrl.addSpacing(15)
+        ctrl.addWidget(QLabel("Broj slotova:"))
+        self.spin_slot_count = QSpinBox()
+        self.spin_slot_count.setRange(2, 24)
+        self.spin_slot_count.setValue(8)
+        self.spin_slot_count.setFixedWidth(55)
+        self.spin_slot_count.valueChanged.connect(lambda _: self._rebuild_schedule_table())
+        ctrl.addWidget(self.spin_slot_count)
 
-        ttk.Label(ctrl, text="  Broj slotova:").pack(side="left")
-        slot_spin = ttk.Spinbox(ctrl, from_=2, to=24, width=4, textvariable=self.var_slot_count)
-        slot_spin.pack(side="left", padx=5)
-        slot_spin.bind("<FocusOut>", lambda e: self._rebuild_schedule_table())
+        btn_reset = QPushButton("Resetuj")
+        btn_reset.clicked.connect(self._reset_schedule)
+        ctrl.addWidget(btn_reset)
+        ctrl.addStretch()
+        layout.addLayout(ctrl)
 
-        ttk.Button(ctrl, text="Resetuj", command=self._reset_schedule).pack(side="left", padx=10)
+        # Column header
+        hdr = QHBoxLayout()
+        for text, w in [("Slot", 40), ("Pocetak", 70), ("Kraj", 70), ("Profil", 180)]:
+            lbl = QLabel(text)
+            lbl.setFixedWidth(w)
+            hdr.addWidget(lbl)
+        hdr.addStretch()
+        layout.addLayout(hdr)
 
-        hdr = ttk.Frame(f)
-        hdr.pack(fill="x", padx=10)
-        for text, w in [("Slot", 5), ("Pocetak", 10), ("Kraj", 10), ("Profil", 25)]:
-            ttk.Label(hdr, text=text, width=w, anchor="w").pack(side="left")
+        self.schedule_container = QWidget()
+        self.schedule_layout = QVBoxLayout(self.schedule_container)
+        self.schedule_layout.setContentsMargins(0, 0, 0, 0)
+        self.schedule_layout.setSpacing(2)
+        layout.addWidget(self.schedule_container)
 
-        self.schedule_frame = ttk.Frame(f)
-        self.schedule_frame.pack(fill="both", expand=True, padx=10)
+        self.lbl_gap_warning = QLabel("")
+        self.lbl_gap_warning.setStyleSheet("color: orange;")
+        layout.addWidget(self.lbl_gap_warning)
 
-        self.lbl_gap_warning = ttk.Label(f, text="", foreground="orange")
-        self.lbl_gap_warning.pack(padx=10, anchor="w")
-
+        layout.addStretch()
         self._rebuild_schedule_table()
 
-    def _rebuild_schedule_table(self, keep_profiles=False):
+    def _rebuild_schedule_table(self, keep_profiles: bool = False):
         """Rebuild schedule rows from current slot count and start hour."""
-        old_profiles = [row["profile_var"].get() for row in self.schedule_rows] if keep_profiles else []
+        old_profiles = [row["profile_combo"].currentText() for row in self.schedule_rows] if keep_profiles else []
 
-        for widget in self.schedule_frame.winfo_children():
-            widget.destroy()
+        while self.schedule_layout.count():
+            item = self.schedule_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
         self.schedule_rows.clear()
 
-        count = self.var_slot_count.get()
-        start = self.var_start_hour.get()
+        count = self.spin_slot_count.value()
+        start = self.spin_start_hour.value()
         duration = 24 // count if count else 3
 
         for i in range(count):
             hour = (start + duration * i) % 24
             start_time = f"{hour:02d}:00"
-            row_frame = ttk.Frame(self.schedule_frame)
-            row_frame.pack(fill="x", pady=1)
 
-            ttk.Label(row_frame, text=str(i + 1), width=5).pack(side="left")
+            row_widget = QWidget()
+            row_layout = QHBoxLayout(row_widget)
+            row_layout.setContentsMargins(0, 0, 0, 0)
 
-            start_var = tk.StringVar(value=start_time)
-            start_entry = ttk.Entry(row_frame, textvariable=start_var, width=8)
-            start_entry.pack(side="left", padx=2)
-            start_entry.bind("<FocusOut>", lambda e: self._update_end_times())
+            num_lbl = QLabel(str(i + 1))
+            num_lbl.setFixedWidth(40)
+            row_layout.addWidget(num_lbl)
 
-            end_lbl = ttk.Label(row_frame, text="-", width=10)
-            end_lbl.pack(side="left", padx=2)
+            start_edit = QLineEdit(start_time)
+            start_edit.setFixedWidth(60)
+            start_edit.editingFinished.connect(self._update_end_times)
+            row_layout.addWidget(start_edit)
 
-            profile_var = tk.StringVar(value=old_profiles[i] if i < len(old_profiles) else "")
-            combo = ttk.Combobox(row_frame, textvariable=profile_var, values=self.profiles, width=22, state="readonly")
-            combo.pack(side="left", padx=2)
+            end_lbl = QLabel("-")
+            end_lbl.setFixedWidth(60)
+            row_layout.addWidget(end_lbl)
 
+            combo = QComboBox()
+            combo.addItems(self.profiles)
+            combo.setFixedWidth(180)
+            if i < len(old_profiles) and old_profiles[i] in self.profiles:
+                combo.setCurrentText(old_profiles[i])
+            row_layout.addWidget(combo)
+            row_layout.addStretch()
+
+            self.schedule_layout.addWidget(row_widget)
             self.schedule_rows.append({
-                "start_var": start_var,
+                "start_edit": start_edit,
                 "end_lbl": end_lbl,
-                "profile_var": profile_var,
+                "profile_combo": combo,
             })
 
         self._update_end_times()
@@ -152,199 +207,234 @@ class MainWindow:
         if not rows:
             return
         for i, row in enumerate(rows):
-            next_start = rows[(i + 1) % len(rows)]["start_var"].get()
+            next_start = rows[(i + 1) % len(rows)]["start_edit"].text()
             try:
                 nh, nm = map(int, next_start.split(":"))
                 end_min = (nh * 60 + nm - 1) % (24 * 60)
-                end_str = f"{end_min // 60:02d}:{end_min % 60:02d}"
-                row["end_lbl"].config(text=end_str)
+                row["end_lbl"].setText(f"{end_min // 60:02d}:{end_min % 60:02d}")
             except ValueError:
-                row["end_lbl"].config(text="??")
+                row["end_lbl"].setText("??")
 
-        self.lbl_gap_warning.config(text="")
+        self.lbl_gap_warning.setText("")
 
     def _reset_schedule(self):
         self._rebuild_schedule_table(keep_profiles=True)
 
     def _build_fkeys_tab(self):
-        f = self.tab_fkeys
-        ttk.Label(f, text="Dodeli profil na F tastere:").pack(anchor="w", padx=10, pady=(15, 5))
+        layout = QVBoxLayout(self.tab_fkeys)
+        layout.setContentsMargins(10, 15, 10, 10)
+        layout.addWidget(QLabel("Dodeli profil na F tastere:"))
 
-        grid = ttk.Frame(f)
-        grid.pack(padx=10)
+        grid = QGridLayout()
+        grid.setSpacing(8)
+        self.fkey_combos = []
 
-        self.fkey_vars = []
         for i in range(12):
-            row, col = divmod(i, 2)  # 2 columns: F1,F2 in row 0, F3,F4 in row 1, etc.
-            var = tk.StringVar()
-            self.fkey_vars.append(var)
-            ttk.Label(grid, text=f"F{i + 1}:", width=5).grid(row=row, column=col * 2, sticky="e", padx=5, pady=3)
-            ttk.Combobox(grid, textvariable=var, values=self.profiles, width=20, state="readonly").grid(
-                row=row, column=col * 2 + 1, sticky="w", padx=5, pady=3
-            )
+            row, col = divmod(i, 2)
+            lbl = QLabel(f"F{i + 1}:")
+            lbl.setFixedWidth(35)
+            combo = QComboBox()
+            combo.addItems(self.profiles)
+            combo.setFixedWidth(180)
+            self.fkey_combos.append(combo)
+            grid.addWidget(lbl,   row, col * 2)
+            grid.addWidget(combo, row, col * 2 + 1)
 
-        ttk.Label(f, text="VBS fajlovi se generisu u rainbow/", foreground="gray").pack(anchor="w", padx=10, pady=10)
+        layout.addLayout(grid)
+        info = QLabel("VBS fajlovi se generisu u rainbow/")
+        info.setStyleSheet("color: gray;")
+        layout.addWidget(info)
+        layout.addStretch()
 
     def _build_extras_tab(self):
-        f = self.tab_extras
-        ttk.Label(f, text="Rucni profili (pozivaju se VBS-om):").pack(anchor="w", padx=10, pady=(15, 5))
+        layout = QVBoxLayout(self.tab_extras)
+        layout.setContentsMargins(10, 15, 10, 10)
+        layout.addWidget(QLabel("Rucni profili (pozivaju se VBS-om):"))
 
-        self.extras_container = ttk.Frame(f)
-        self.extras_container.pack(fill="both", expand=True, padx=10)
+        self.extras_container = QWidget()
+        self.extras_layout = QVBoxLayout(self.extras_container)
+        self.extras_layout.setContentsMargins(0, 0, 0, 0)
+        self.extras_layout.setSpacing(4)
+        layout.addWidget(self.extras_container)
 
-        ttk.Button(f, text="+ Dodaj novi", command=self._add_extra_row).pack(anchor="w", padx=10, pady=10)
+        btn_add = QPushButton("+ Dodaj novi")
+        btn_add.clicked.connect(lambda: self._add_extra_row())
+        layout.addWidget(btn_add, alignment=Qt.AlignmentFlag.AlignLeft)
+
+        layout.addStretch()
 
     def _add_extra_row(self, name: str = "", profile: str = "") -> None:
-        row_frame = ttk.Frame(self.extras_container)
-        row_frame.pack(fill="x", pady=2)
+        row_widget = QWidget()
+        row_layout = QHBoxLayout(row_widget)
+        row_layout.setContentsMargins(0, 0, 0, 0)
 
-        ttk.Label(row_frame, text="Naziv:").pack(side="left")
-        name_var = tk.StringVar(value=name)
-        ttk.Entry(row_frame, textvariable=name_var, width=12).pack(side="left", padx=5)
+        row_layout.addWidget(QLabel("Naziv:"))
+        name_edit = QLineEdit(name)
+        name_edit.setFixedWidth(100)
+        row_layout.addWidget(name_edit)
 
-        ttk.Label(row_frame, text="Profil:").pack(side="left")
-        profile_var = tk.StringVar(value=profile)
-        ttk.Combobox(row_frame, textvariable=profile_var, values=self.profiles, width=20, state="readonly").pack(
-            side="left", padx=5
-        )
+        row_layout.addWidget(QLabel("Profil:"))
+        combo = QComboBox()
+        combo.addItems(self.profiles)
+        combo.setFixedWidth(180)
+        if profile and profile in self.profiles:
+            combo.setCurrentText(profile)
+        row_layout.addWidget(combo)
 
-        row = {"name_var": name_var, "profile_var": profile_var, "frame": row_frame}
+        row = {"name_edit": name_edit, "profile_combo": combo, "widget": row_widget}
 
-        def delete(r=row):
-            self.extra_rows.remove(r)
-            r["frame"].destroy()
+        btn_del = QPushButton("X")
+        btn_del.setFixedWidth(30)
+        btn_del.clicked.connect(lambda: self._delete_extra_row(row))
+        row_layout.addWidget(btn_del)
+        row_layout.addStretch()
 
-        ttk.Button(row_frame, text="X", width=3, command=delete).pack(side="left", padx=5)
+        self.extras_layout.addWidget(row_widget)
         self.extra_rows.append(row)
 
+    def _delete_extra_row(self, row: dict) -> None:
+        if row in self.extra_rows:
+            self.extra_rows.remove(row)
+        row["widget"].deleteLater()
+
     def _build_bottom_bar(self):
-        bar = ttk.Frame(self.root)
-        bar.pack(fill="x", padx=10, pady=(0, 10))
+        bar = QWidget()
+        bar_layout = QHBoxLayout(bar)
+        bar_layout.setContentsMargins(0, 5, 0, 10)
 
-        self.lbl_bottom_status = ttk.Label(bar, text="Spreman.")
-        self.lbl_bottom_status.pack(side="left")
+        self.lbl_bottom_status = QLabel("Spreman.")
+        bar_layout.addWidget(self.lbl_bottom_status)
+        bar_layout.addStretch()
 
-        ttk.Button(bar, text="Primeni", command=self._apply).pack(side="right")
+        btn_apply = QPushButton("Primeni")
+        btn_apply.clicked.connect(self._apply)
+        bar_layout.addWidget(btn_apply)
+
+        self._main_layout.addWidget(bar)
 
     # ------------------------------------------------------------------
     # Actions
     # ------------------------------------------------------------------
 
     def _browse_openrgb(self):
-        path = filedialog.askopenfilename(
-            title="Izaberi OpenRGB.exe",
-            filetypes=[("OpenRGB executable", "OpenRGB.exe"), ("All files", "*.*")]
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Izaberi OpenRGB.exe",
+            "",
+            "OpenRGB executable (OpenRGB.exe);;All files (*.*)",
         )
         if path:
-            self.var_path.set(path.replace("/", "\\"))
+            self.edit_path.setText(path.replace("/", "\\"))
             self._rescan()
 
     def _rescan(self):
-        path = self.var_path.get().strip()
+        path = self.edit_path.text().strip()
         if not os.path.isfile(path):
-            self.lbl_status.config(text="Status: Fajl nije pronadjen")
+            self.lbl_status.setText("Status: Fajl nije pronadjen")
             self.profiles = []
-            self.lbl_profiles.config(text="(nema)")
+            self.lbl_profiles.setText("(nema)")
             return
 
         self.profiles = scan_profiles(path)
         if self.profiles:
-            self.lbl_status.config(text=f"Status: OpenRGB pronadjen - {len(self.profiles)} profila")
-            self.lbl_profiles.config(text=", ".join(self.profiles))
+            self.lbl_status.setText(f"Status: OpenRGB pronadjen - {len(self.profiles)} profila")
+            self.lbl_profiles.setText(", ".join(self.profiles))
         else:
-            self.lbl_status.config(text="Status: OpenRGB nadjen, ali nema .orp profila")
-            self.lbl_profiles.config(text="(nema)")
+            self.lbl_status.setText("Status: OpenRGB nadjen, ali nema .orp profila")
+            self.lbl_profiles.setText("(nema)")
         self._refresh_dropdowns()
 
     def _refresh_dropdowns(self):
-        """Update all dropdowns in other tabs after profile rescan."""
+        """Update all dropdowns after profile rescan."""
         self._rebuild_schedule_table(keep_profiles=True)
         self._refresh_fkeys()
         self._refresh_extras()
 
     def _refresh_fkeys(self):
         """Update F-key combobox values after profile rescan."""
-        for widget in self._get_fkey_comboboxes():
-            widget.config(values=self.profiles)
-
-    def _get_fkey_comboboxes(self) -> list:
-        """Return all Combobox widgets from the fkeys tab grid."""
-        result = []
-        for frame in self.tab_fkeys.winfo_children():
-            if isinstance(frame, ttk.Frame):
-                for child in frame.winfo_children():
-                    if isinstance(child, ttk.Combobox):
-                        result.append(child)
-        return result
+        for combo in self.fkey_combos:
+            current = combo.currentText()
+            combo.clear()
+            combo.addItems(self.profiles)
+            if current in self.profiles:
+                combo.setCurrentText(current)
 
     def _refresh_extras(self):
         """Update extras combobox values after profile rescan."""
         for row in self.extra_rows:
-            for child in row["frame"].winfo_children():
-                if isinstance(child, ttk.Combobox):
-                    child.config(values=self.profiles)
+            combo = row["profile_combo"]
+            current = combo.currentText()
+            combo.clear()
+            combo.addItems(self.profiles)
+            if current in self.profiles:
+                combo.setCurrentText(current)
 
     def _load_existing_config(self):
-        state = read_config(CONFIG_PATH)
+        state = read_config(str(CONFIG_PATH))
         if not state:
             return
-        self.var_path.set(state["openRGBPath"])
+        self.edit_path.setText(state["openRGBPath"])
         self._rescan()
         if state.get("schedules"):
-            self.var_slot_count.set(len(state["schedules"]))
+            self.spin_slot_count.setValue(len(state["schedules"]))
             self._rebuild_schedule_table()
             for i, item in enumerate(state["schedules"]):
                 if i < len(self.schedule_rows):
-                    self.schedule_rows[i]["start_var"].set(item["startTime"])
-                    self.schedule_rows[i]["profile_var"].set(item["profile"])
+                    self.schedule_rows[i]["start_edit"].setText(item["startTime"])
+                    profile = item["profile"]
+                    if profile in self.profiles:
+                        self.schedule_rows[i]["profile_combo"].setCurrentText(profile)
             self._update_end_times()
         if state.get("rainbow"):
             for i, item in enumerate(state["rainbow"]):
-                if i < len(self.fkey_vars):
-                    self.fkey_vars[i].set(item["profile"])
+                if i < len(self.fkey_combos):
+                    profile = item["profile"]
+                    if profile in self.profiles:
+                        self.fkey_combos[i].setCurrentText(profile)
         for item in state.get("extras", []):
             self._add_extra_row(name=item.get("vbsName", ""), profile=item.get("profile", ""))
 
     def _apply(self):
-        if not os.path.isfile(self.var_path.get().strip()):
-            messagebox.showerror("Greska", "OpenRGB putanja nije validna.")
+        if not os.path.isfile(self.edit_path.text().strip()):
+            QMessageBox.critical(self, "Greska", "OpenRGB putanja nije validna.")
             return
-        self.lbl_bottom_status.config(text="Pisanje config.json...")
-        self.root.update()
+        self.lbl_bottom_status.setText("Pisanje config.json...")
+        QApplication.processEvents()
 
         state = self._collect_state()
-        write_config(CONFIG_PATH, state)
+        write_config(str(CONFIG_PATH), state)
 
-        self.lbl_bottom_status.config(text="Pokretanje setup.ps1 (Admin)...")
-        self.root.update()
+        self.lbl_bottom_status.setText("Pokretanje setup.ps1 (Admin)...")
+        QApplication.processEvents()
 
-        ok, msg = run_setup(SCRIPT_DIR)
+        ok, msg = run_setup(str(SCRIPT_DIR))
         if ok:
-            self.lbl_bottom_status.config(text=f"OK - {msg}")
+            self.lbl_bottom_status.setText(f"OK - {msg}")
         else:
-            self.lbl_bottom_status.config(text=f"Greska - {msg}")
+            self.lbl_bottom_status.setText(f"Greska - {msg}")
 
     def _collect_state(self) -> dict:
         """Collect current GUI state into dict for config_writer."""
-        schedules = []
-        for i, row in enumerate(self.schedule_rows):
-            schedules.append({
+        schedules = [
+            {
                 "taskName": f"OpenRGB slot{i + 1}",
                 "vbsName": f"slot{i + 1}",
-                "profile": row["profile_var"].get(),
-                "startTime": row["start_var"].get(),
-            })
+                "profile": row["profile_combo"].currentText(),
+                "startTime": row["start_edit"].text(),
+            }
+            for i, row in enumerate(self.schedule_rows)
+        ]
         rainbow = [
-            {"vbsName": f"F{i + 1}", "profile": var.get()}
-            for i, var in enumerate(self.fkey_vars)
+            {"vbsName": f"F{i + 1}", "profile": combo.currentText()}
+            for i, combo in enumerate(self.fkey_combos)
         ]
         extras = [
-            {"vbsName": row["name_var"].get(), "profile": row["profile_var"].get()}
+            {"vbsName": row["name_edit"].text(), "profile": row["profile_combo"].currentText()}
             for row in self.extra_rows
-            if row["name_var"].get().strip()
+            if row["name_edit"].text().strip()
         ]
         return {
-            "openRGBPath": self.var_path.get().strip(),
+            "openRGBPath": self.edit_path.text().strip(),
             "schedules": schedules,
             "extras": extras,
             "rainbow": rainbow,
@@ -352,9 +442,10 @@ class MainWindow:
 
 
 def main():
-    root = tk.Tk()
-    app = MainWindow(root)
-    root.mainloop()
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":
