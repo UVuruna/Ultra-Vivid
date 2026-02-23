@@ -9,6 +9,7 @@ __pycache__/
 # PyInstaller build output
 build/
 dist/
+*.spec
 
 # Setup certificates (private — never commit)
 setup/cert/
