@@ -1,6 +1,8 @@
-# 🌈 OpenRGB Schedule
+# Ultra Vivid
 
-Automatic RGB profile switching based on time of day.
+*(formerly Auto OpenRGB)*
+
+Automatic RGB lighting profile switching by time of day for Windows. Defines profiles per time slot (dawn, morning, day, evening, night), generates VBS keyboard shortcuts, and creates Windows Task Scheduler tasks that run OpenRGB with the right profile automatically.
 
 ## 📋 Table of Contents
 

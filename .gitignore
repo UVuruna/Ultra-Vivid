@@ -29,3 +29,6 @@ env/
 
 # Generated assets (rebuilt from logo.svg)
 assets/AutoOpenRGB.ico
+
+# Owner inbox - local only (root Rule #18)
+UV/
