@@ -54,7 +54,7 @@ def _load_password() -> str | None:
 APP_VERSION = _read_version()
 CERT_PASSWORD = _load_password()
 APP_NAME = "UltraVivid"
-ENTRY_POINT = PROJECT_DIR / "gui" / "gui.py"
+ENTRY_POINT = PROJECT_DIR / "gui" / "app.py"
 
 
 def step(msg: str):

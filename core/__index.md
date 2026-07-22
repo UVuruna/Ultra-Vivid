@@ -24,11 +24,20 @@ Connects to the OpenRGB SDK server, filters devices by the config
 include/exclude list, applies colors in Direct (fallback Static) mode.
 See [Apply](apply.md).
 
+### `keymap.py` — Key Tables
+Key labels + Win32 VK codes + modifier flags, shared by GUI and daemon.
+See [Keymap](keymap.md).
+
+### `chroma.py` — Razer Chroma Client
+Optional keyboard coloring through the local Chroma REST endpoint,
+held by the daemon. See [Chroma](chroma.md).
+
 ## Connections
 
 ### Used by
-- [Resolver](../resolver.md) — CLI entry point wired to Task Scheduler,
-  Synapse slots, and the future hotkey daemon
+- [Resolver](../resolver.md) — CLI entry point (Task Scheduler tick, Synapse slots)
+- [Hotkey Daemon](../hotkey_daemon.md) — global hotkeys + Chroma session
+- [GUI (folder)](../gui/__index.md) — validation, live preview, device list
 
 ## Design Decisions
 - **Compute, don't generate (root Rule #19):** no `.orp` profiles, no

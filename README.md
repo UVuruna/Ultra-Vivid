@@ -28,7 +28,7 @@ flowchart LR
     subgraph TRIGGERS["Triggers"]
         A[Task tick: log on / resume / 10 min]
         B[Synapse slot file]
-        C[Hotkey daemon - Phase 2]
+        C[Hotkey daemon]
     end
 
     subgraph ENGINE["Resolver"]
@@ -53,17 +53,16 @@ The tick stores its last decision and skips applying when nothing changed, so th
 
 ```
 📁 Ultra Vivid/
-  ⚙️ config.json         ← THE ONLY FILE YOU EDIT (schema v2)
+  ⚙️ config.json         ← All presets, rules, devices, shortcuts (schema v2)
   🐍 resolver.py         ← The engine entry point
-  🔧 install-task.ps1    ← Run once: registers the scheduled task
-  📁 core/               ← Engine: settings, solar, schedule, apply
+  🐍 hotkey_daemon.py    ← Resident: global hotkeys + optional Chroma
+  🔧 install-task.ps1    ← Run once: tasks + startup server script
+  📁 core/               ← Engine: settings, solar, schedule, apply, keymap, chroma
+  📁 gui/                ← Control panel (PySide6): python -m gui.app
   📁 shortcuts/          ← Stable slot files for Synapse bindings (generated)
-  📁 gui/                ← Setup GUI (Phase 2 rewrite pending)
+  📁 tests/              ← Golden tests for schedule semantics
   📁 setup/              ← Build pipeline (installer)
   📝 README.md, CLAUDE.md, version.py
-
-Legacy (replaced by the resolver, removal pending in Phase 4):
-  🔧 setup.ps1, 📁 lib/, 📁 cycle/, 📁 rainbow/, 📁 generated/
 ```
 
 ---
@@ -81,11 +80,18 @@ pip install -r requirements.txt
 .\install-task.ps1
 ```
 
-3. Verify:
+3. Configure through the GUI (or edit `config.json` directly):
+
+```powershell
+python -m gui.app
+```
+
+4. Verify:
 
 ```powershell
 python resolver.py --dry-run        # what would be applied right now
 python resolver.py --list-devices   # devices as OpenRGB reports them
+python -m pytest tests              # schedule semantics golden tests
 ```
 
 ---
@@ -118,8 +124,9 @@ Everything lives in `config.json` (schema v2). Full field reference: [Settings](
 
 Shortcut **sets** in config bind keys to color presets (`selector` = shift / ctrl / ctrl+shift / alt+shift / hypershift; `keys` = fkeys / numrow / numpad / qwerty).
 
-- **Standard selectors** will be served by the hotkey daemon (Phase 2).
+- **Standard selectors** are global hotkeys served by the resident daemon (`Ultra Vivid daemon` task, [Hotkey Daemon](hotkey_daemon.md)).
 - **Razer Hypershift** has no automation API — instead, `python resolver.py --write-slots` generates **stable** `shortcuts/slot-*.vbs` files. Point a Synapse LAUNCH binding at a slot file ONCE; re-mapping what the slot does is then a pure config change. See [Shortcuts (folder)](shortcuts/__index.md).
+- **Chroma module** (optional): the daemon can color the Razer keyboard through the Chroma REST API while Synapse keeps all key bindings — see [Chroma](core/chroma.md).
 
 ---
 
@@ -142,10 +149,11 @@ Shortcut **sets** in config bind keys to color presets (`selector` = shift / ctr
 
 | Area | Doc |
 |------|-----|
-| Engine | [Core (folder)](core/__index.md) → [Settings](core/settings.md), [Solar](core/solar.md), [Schedule](core/schedule.md), [Apply](core/apply.md) |
+| Engine | [Core (folder)](core/__index.md) → [Settings](core/settings.md), [Solar](core/solar.md), [Schedule](core/schedule.md), [Apply](core/apply.md), [Keymap](core/keymap.md), [Chroma](core/chroma.md) |
 | Entry point | [Resolver](resolver.md) |
-| Scheduled task | [Install Task](install-task.md) |
+| Daemon | [Hotkey Daemon](hotkey_daemon.md) |
+| Scheduled tasks | [Install Task](install-task.md) |
 | Synapse slots | [Shortcuts (folder)](shortcuts/__index.md) |
-| Setup GUI (legacy, Phase 2 rewrite) | [GUI (folder)](gui/__index.md) |
+| Control panel | [GUI (folder)](gui/__index.md) |
 | Build pipeline | [Setup (folder)](setup/__setup.md) |
 | AI guidance | [CLAUDE.md](CLAUDE.md) |

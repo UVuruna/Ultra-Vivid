@@ -15,9 +15,10 @@ that first; only project facts and deltas live here.
   **Compute, don't generate (root Rule #19):** no `.orp` profiles, no
   per-combination scripts — `resolver.py` computes the color for any moment.
 - **Stack:** Python 3.13 (`openrgb-python` SDK client, `astral` solar math —
-  same library/convention as DOMY Watch), one Task Scheduler task
-  (`Ultra Vivid resolver`: log on + resume + 10-min tick), PySide6 GUI
-  (Phase 2 rewrite pending). OpenRGB runs as SDK server from Startup.
+  same library/convention as DOMY Watch), two Task Scheduler tasks
+  (`Ultra Vivid resolver`: log on + resume + 10-min tick; `Ultra Vivid
+  daemon`: resident, hotkeys + Chroma), PySide6 GUI (`python -m gui.app`).
+  OpenRGB runs as SDK server from Startup.
 - **Config-driven:** everything lives in `config.json` schema v2 (Rule #4);
   `core/settings.py` validates loudly and refuses old-schema configs.
 - **Synapse boundary (researched 2026-07-22):** Razer Synapse bindings have
@@ -56,5 +57,5 @@ flowchart LR
 ## Key Documentation
 
 - [README.md](README.md) — overview, usage, technical documentation
-- Engine: `core/__index.md`, `resolver.md`, `install-task.md`, `shortcuts/__index.md`
-- Legacy (pending Phase 4 removal): `lib/`, `cycle/`, `rainbow/`, `generated/`, `setup.ps1`, `gui/`
+- Engine: `core/__index.md`, `resolver.md`, `hotkey_daemon.md`, `install-task.md`, `shortcuts/__index.md`
+- GUI: `gui/__index.md` (PySide6 control panel, `python -m gui.app`)
