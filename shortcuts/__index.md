@@ -10,8 +10,9 @@ One folder per shortcut SET, named after the set (e.g. `Rainbow/`,
 ```
 
 The user's flow (see [Shortcuts Tab](../gui/shortcuts_tab.py)): name the
-set → pick selector → pick ANY keys → pick a color per key → "Create
-shortcut files". Normal selectors are then registered automatically by
+set → pick selector → pick ANY keys → bind each key to a COLOR or a whole
+PRESET → "Create shortcut files". A preset binding switches the active
+preset on press (see [Actions](../core/actions.md)). Normal selectors are then registered automatically by
 the [Hotkey Daemon](../hotkey_daemon.md); for **hypershift** sets the GUI
 opens this folder plus Razer Synapse with a linking guide — each key's
 file is linked in Synapse ONCE, and re-mapping colors later is a pure

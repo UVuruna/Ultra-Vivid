@@ -32,6 +32,7 @@ from pathlib import Path
 PROJECT_DIR = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_DIR))
 
+from core import actions
 from core import apply as rgb
 from core import schedule, settings as settings_mod
 
@@ -72,8 +73,9 @@ def _write_state(color: str | None) -> None:
     )
 
 
-def _shortcut_color(cfg, spec: str) -> str | None:
-    """Resolve 'SetName:key' (e.g. 'DUGA:q') to a color name.
+def _shortcut_binding(cfg, spec: str) -> dict | None:
+    """Resolve 'SetName:key' (e.g. 'DUGA:q') to its binding —
+    {"color": name} or {"preset": name}.
 
     Returns None when the set or key no longer exists — a stale slot
     file is a quiet no-op, never an error dialog on a keypress.
@@ -81,10 +83,10 @@ def _shortcut_color(cfg, spec: str) -> str | None:
     set_name, _, key = spec.partition(":")
     for shortcut_set in cfg.shortcut_sets:
         if shortcut_set.name.lower() == set_name.lower():
-            color = shortcut_set.bindings.get(key)
-            if color is None:
+            binding = shortcut_set.bindings.get(key)
+            if binding is None:
                 logger.info("Slot %s: key not bound — nothing to do.", spec)
-            return color
+            return binding
     logger.info("Slot %s: set not found — nothing to do.", spec)
     return None
 
@@ -194,9 +196,11 @@ def main() -> None:
             if color not in cfg.colors:
                 raise SystemExit(f"unknown color {color!r}")
         else:
-            color = _shortcut_color(cfg, args.shortcut)
-            if color is None:
+            binding = _shortcut_binding(cfg, args.shortcut)
+            if binding is None:
                 return  # unbound slot: documented no-op
+            color = actions.resolve_binding(CONFIG_PATH, binding)
+            cfg = settings_mod.load(CONFIG_PATH)  # activePreset may have changed
         rgb.apply_color(cfg, color)
         _write_state(color)
         return

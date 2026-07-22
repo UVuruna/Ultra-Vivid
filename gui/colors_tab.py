@@ -164,7 +164,7 @@ class ColorsTab(QWidget):
             if hits:
                 used.append(f"preset {preset['name']!r}")
         for st in self.raw.get("shortcuts", {}).get("sets", []):
-            if name in st.get("bindings", {}).values():
+            if any(b.get("color") == name for b in st.get("bindings", {}).values()):
                 used.append(f"shortcut set {st['name']!r}")
         return used
 
@@ -185,9 +185,9 @@ class ColorsTab(QWidget):
                         d[tk] = new
                 d["night"] = [new if c == old else c for c in d.get("night", [])]
         for st in self.raw.get("shortcuts", {}).get("sets", []):
-            for k, v in st.get("bindings", {}).items():
-                if v == old:
-                    st["bindings"][k] = new
+            for binding in st.get("bindings", {}).values():
+                if binding.get("color") == old:
+                    binding["color"] = new
 
     # -- hex value actions -------------------------------------------------
 

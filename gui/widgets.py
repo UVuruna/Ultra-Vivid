@@ -45,6 +45,37 @@ def combo_value(combo: QComboBox) -> str | None:
     return None if text == NONE_ITEM else text
 
 
+def binding_combo(raw: dict, binding: dict | None) -> QComboBox:
+    """Combo for a shortcut binding: every defined COLOR (with swatch)
+    followed by every PRESET (rule, 🕑 prefix). The selected binding
+    dict is read back with binding_from_combo."""
+    from PySide6.QtCore import Qt
+
+    combo = QComboBox()
+    for name, values in raw["colors"].items():
+        combo.addItem(theme.swatch_icon(values[0]), name)
+        combo.setItemData(combo.count() - 1, ("color", name), Qt.ItemDataRole.UserRole)
+    if raw.get("presets"):
+        combo.insertSeparator(combo.count())
+        for preset in raw["presets"]:
+            combo.addItem(f"🕑 {preset['name']}")
+            combo.setItemData(combo.count() - 1, ("preset", preset["name"]),
+                              Qt.ItemDataRole.UserRole)
+    if binding:
+        kind, name = next(iter(binding.items()))
+        for i in range(combo.count()):
+            if combo.itemData(i, Qt.ItemDataRole.UserRole) == (kind, name):
+                combo.setCurrentIndex(i)
+                break
+    return combo
+
+
+def binding_from_combo(combo: QComboBox) -> dict | None:
+    from PySide6.QtCore import Qt
+    data = combo.currentData(Qt.ItemDataRole.UserRole)
+    return {data[0]: data[1]} if data else None
+
+
 def refresh_color_combo(combo: QComboBox, raw: dict, selected: str | None,
                         allow_none: bool = False) -> None:
     """Rebuild a color combo's item list from the CURRENT colors dict —

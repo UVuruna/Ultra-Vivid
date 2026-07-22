@@ -15,35 +15,96 @@
     },
     "devices": {
         "mode": "exclude",
-        "names": ["Razer"]
+        "names": [
+            "Razer"
+        ]
     },
     "chroma": {
         "enabled": false,
         "followSchedule": true
     },
     "colors": {
-        "blue":       ["0000FF"],
-        "cyan":       ["00FFFF"],
-        "green":      ["00FF00"],
-        "yellow":     ["FFFF00"],
-        "orange":     ["FF8000"],
-        "red":        ["FF0000"],
-        "magenta":    ["FF00FF"],
-        "purple":     ["8000FF"],
-        "white":      ["FFFFFF"],
-        "black":      ["000000"],
-        "rainbow-01": ["0000FF"],
-        "rainbow-02": ["0088FF"],
-        "rainbow-03": ["00FFFF"],
-        "rainbow-04": ["00FF88"],
-        "rainbow-05": ["00FF00"],
-        "rainbow-06": ["88FF00"],
-        "rainbow-07": ["FFFF00"],
-        "rainbow-08": ["FF8800"],
-        "rainbow-09": ["FF0000"],
-        "rainbow-10": ["FF0088"],
-        "rainbow-11": ["FF00FF"],
-        "rainbow-12": ["8800FF"]
+        "blue": [
+            "0000FF"
+        ],
+        "cyan": [
+            "00FFFF"
+        ],
+        "green": [
+            "00FF00"
+        ],
+        "yellow": [
+            "FFFF00"
+        ],
+        "orange": [
+            "FF8000"
+        ],
+        "red": [
+            "FF0000"
+        ],
+        "magenta": [
+            "FF00FF"
+        ],
+        "purple": [
+            "8000FF"
+        ],
+        "white": [
+            "FFFFFF"
+        ],
+        "black": [
+            "000000"
+        ],
+        "rainbow-01": [
+            "0000FF"
+        ],
+        "rainbow-02": [
+            "0088FF"
+        ],
+        "rainbow-03": [
+            "00FFFF"
+        ],
+        "rainbow-04": [
+            "00FF88"
+        ],
+        "rainbow-05": [
+            "00FF00"
+        ],
+        "rainbow-06": [
+            "88FF00"
+        ],
+        "rainbow-07": [
+            "FFFF00"
+        ],
+        "rainbow-08": [
+            "FF8800"
+        ],
+        "rainbow-09": [
+            "FF0000"
+        ],
+        "rainbow-10": [
+            "FF0088"
+        ],
+        "rainbow-11": [
+            "FF00FF"
+        ],
+        "rainbow-12": [
+            "8800FF"
+        ],
+        "Brown": [
+            "3C0000"
+        ],
+        "Navy": [
+            "000080"
+        ],
+        "Dark Purple": [
+            "3C0078"
+        ],
+        "Dark Magenta": [
+            "3C003C"
+        ],
+        "Dark Rose": [
+            "78003C"
+        ]
     },
     "scheduleEnabled": true,
     "activePreset": "Daily cycle",
@@ -52,14 +113,46 @@
             "name": "Daily cycle",
             "type": "hours",
             "hours": [
-                { "from": 3,  "to": 6,  "color": "blue"    },
-                { "from": 6,  "to": 9,  "color": "cyan"    },
-                { "from": 9,  "to": 12, "color": "green"   },
-                { "from": 12, "to": 15, "color": "yellow"  },
-                { "from": 15, "to": 18, "color": "orange"  },
-                { "from": 18, "to": 21, "color": "red"     },
-                { "from": 21, "to": 0,  "color": "magenta" },
-                { "from": 0,  "to": 3,  "color": "purple"  }
+                {
+                    "from": 3,
+                    "to": 6,
+                    "color": "blue"
+                },
+                {
+                    "from": 6,
+                    "to": 9,
+                    "color": "cyan"
+                },
+                {
+                    "from": 9,
+                    "to": 12,
+                    "color": "green"
+                },
+                {
+                    "from": 12,
+                    "to": 15,
+                    "color": "yellow"
+                },
+                {
+                    "from": 15,
+                    "to": 18,
+                    "color": "orange"
+                },
+                {
+                    "from": 18,
+                    "to": 21,
+                    "color": "red"
+                },
+                {
+                    "from": 21,
+                    "to": 0,
+                    "color": "magenta"
+                },
+                {
+                    "from": 0,
+                    "to": 3,
+                    "color": "purple"
+                }
             ],
             "weekdays": {},
             "monthdays": [],
@@ -74,10 +167,20 @@
             "monthdays": [],
             "months": {},
             "daylight": {
-                "day": ["cyan", "green", "yellow", "orange"],
-                "twilightMorning": "magenta",
-                "twilightEvening": "red",
-                "night": ["purple"]
+                "day": [
+                    "rainbow-02",
+                    "green",
+                    "yellow",
+                    "orange",
+                    "rainbow-09"
+                ],
+                "twilightMorning": "Brown",
+                "twilightEvening": "Navy",
+                "night": [
+                    "Dark Rose",
+                    "Dark Magenta",
+                    "Dark Purple"
+                ]
             }
         }
     ],
@@ -88,10 +191,84 @@
                 "name": "Rainbow",
                 "selector": "shift",
                 "bindings": {
-                    "F1": "rainbow-01", "F2": "rainbow-02", "F3": "rainbow-03",
-                    "F4": "rainbow-04", "F5": "rainbow-05", "F6": "rainbow-06",
-                    "F7": "rainbow-07", "F8": "rainbow-08", "F9": "rainbow-09",
-                    "F10": "rainbow-10", "F11": "rainbow-11", "F12": "rainbow-12"
+                    "F1": {
+                        "color": "rainbow-01"
+                    },
+                    "F2": {
+                        "color": "rainbow-02"
+                    },
+                    "F3": {
+                        "color": "rainbow-03"
+                    },
+                    "F4": {
+                        "color": "rainbow-04"
+                    },
+                    "F5": {
+                        "color": "rainbow-05"
+                    },
+                    "F6": {
+                        "color": "rainbow-06"
+                    },
+                    "F7": {
+                        "color": "rainbow-07"
+                    },
+                    "F8": {
+                        "color": "rainbow-08"
+                    },
+                    "F9": {
+                        "color": "rainbow-09"
+                    },
+                    "F10": {
+                        "color": "rainbow-10"
+                    },
+                    "F11": {
+                        "color": "rainbow-11"
+                    },
+                    "F12": {
+                        "color": "rainbow-12"
+                    }
+                }
+            },
+            {
+                "name": "Main Colors",
+                "selector": "hypershift",
+                "bindings": {
+                    "num1": {
+                        "color": "purple"
+                    },
+                    "num2": {
+                        "color": "blue"
+                    },
+                    "num3": {
+                        "color": "rainbow-02"
+                    },
+                    "num4": {
+                        "color": "cyan"
+                    },
+                    "num5": {
+                        "color": "green"
+                    },
+                    "num6": {
+                        "color": "yellow"
+                    },
+                    "num7": {
+                        "color": "orange"
+                    },
+                    "num8": {
+                        "color": "red"
+                    },
+                    "num9": {
+                        "color": "magenta"
+                    },
+                    "num0": {
+                        "color": "black"
+                    },
+                    "num+": {
+                        "color": "white"
+                    },
+                    "num-": {
+                        "color": "black"
+                    }
                 }
             }
         ]

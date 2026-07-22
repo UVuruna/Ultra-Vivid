@@ -67,9 +67,9 @@ class Preset:
 
 @dataclass(frozen=True)
 class ShortcutSet:
-    name: str                # user-chosen set name (also the slot folder name)
-    selector: str            # one of SHORTCUT_SELECTORS
-    bindings: dict[str, str] # key label (any mix from keymap) -> color name
+    name: str                 # user-chosen set name (also the slot folder name)
+    selector: str             # one of SHORTCUT_SELECTORS
+    bindings: dict[str, dict] # key label -> {"color": name} | {"preset": name}
 
 
 @dataclass(frozen=True)
@@ -130,7 +130,7 @@ def parse(raw: dict) -> Settings:
     if active is not None and active not in names:
         raise ConfigError(f"activePreset {active!r} does not match any preset")
 
-    shortcut_sets = _parse_shortcuts(raw, colors)
+    shortcut_sets = _parse_shortcuts(raw, colors, names)
 
     o = raw.get("openrgb", {})
     dev = raw.get("devices", {})
@@ -257,7 +257,8 @@ def _validate_daylight_location(raw: dict, where: str) -> None:
         raise ConfigError(f"location.timezone {tz!r} is not a valid IANA zone: {e}") from e
 
 
-def _parse_shortcuts(raw: dict, colors: dict) -> list[ShortcutSet]:
+def _parse_shortcuts(raw: dict, colors: dict,
+                     preset_names: list[str]) -> list[ShortcutSet]:
     from core.keymap import VIRTUAL_KEYS
 
     sets = []
@@ -272,9 +273,21 @@ def _parse_shortcuts(raw: dict, colors: dict) -> list[ShortcutSet]:
         if s.get("selector") not in SHORTCUT_SELECTORS:
             raise ConfigError(f"shortcuts.sets[{i}].selector must be one of {SHORTCUT_SELECTORS}")
         bindings = s.get("bindings", {})
-        for key, color in bindings.items():
+        for key, binding in bindings.items():
+            where = f"shortcuts.sets[{i}].bindings[{key!r}]"
             if key not in VIRTUAL_KEYS:
                 raise ConfigError(f"shortcuts.sets[{i}]: unknown key {key!r}")
-            _require_color(colors, color, f"shortcuts.sets[{i}].bindings[{key!r}]")
+            if not isinstance(binding, dict) or len(binding) != 1:
+                raise ConfigError(
+                    f'{where} must be {{"color": name}} or {{"preset": name}}')
+            if "color" in binding:
+                _require_color(colors, binding["color"], where)
+            elif "preset" in binding:
+                if binding["preset"] not in preset_names:
+                    raise ConfigError(f"{where} references unknown preset "
+                                      f"{binding['preset']!r}")
+            else:
+                raise ConfigError(
+                    f'{where} must be {{"color": name}} or {{"preset": name}}')
         sets.append(ShortcutSet(name=name, selector=s["selector"], bindings=bindings))
     return sets

@@ -24,6 +24,10 @@ Connects to the OpenRGB SDK server, filters devices by the config
 include/exclude list, applies colors in Direct (fallback Static) mode.
 See [Apply](apply.md).
 
+### `actions.py` — Shortcut Binding Action
+Shared logic behind a shortcut press: apply a color, or switch the
+active preset and apply what it resolves to. See [Actions](actions.md).
+
 ### `keymap.py` — Key Tables
 Key labels + Win32 VK codes + modifier flags, shared by GUI and daemon.
 See [Keymap](keymap.md).

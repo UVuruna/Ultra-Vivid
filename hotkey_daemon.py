@@ -25,6 +25,7 @@ from pathlib import Path
 PROJECT_DIR = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_DIR))
 
+from core import actions
 from core import apply as rgb
 from core import chroma, schedule
 from core import settings as settings_mod
@@ -61,7 +62,7 @@ class Daemon:
     def __init__(self):
         self.cfg = settings_mod.load(CONFIG_PATH)
         self.cfg_mtime = CONFIG_PATH.stat().st_mtime
-        self.hotkey_actions: dict[int, str] = {}   # hotkey id -> color name
+        self.hotkey_actions: dict[int, dict] = {}  # hotkey id -> binding dict
         self.chroma_session: chroma.ChromaSession | None = None
         self.stop_event = threading.Event()
 
@@ -93,22 +94,25 @@ class Daemon:
             flags = MODIFIER_FLAGS.get(shortcut_set.selector)
             if flags is None:      # hypershift: Synapse territory
                 continue
-            for key, color in shortcut_set.bindings.items():
+            for key, binding in shortcut_set.bindings.items():
                 vk = VIRTUAL_KEYS[key]
                 if user32.RegisterHotKey(None, next_id, flags | MOD_NOREPEAT, vk):
-                    self.hotkey_actions[next_id] = color
+                    self.hotkey_actions[next_id] = binding
                 else:
                     logger.warning("RegisterHotKey failed for %s+%s (in use?)",
                                    shortcut_set.selector, key)
                 next_id += 1
         logger.info("Registered %d hotkeys.", len(self.hotkey_actions))
 
-    def apply_color(self, color: str) -> None:
+    def apply_binding(self, binding: dict) -> None:
+        """A hotkey fired: apply its color, or switch to its preset
+        (persisted — the reload timer then re-reads the config)."""
         try:
+            color = actions.resolve_binding(CONFIG_PATH, binding)
             rgb.apply_color(self.cfg, color)
+            self.push_chroma(color)
         except Exception:
-            logger.exception("OpenRGB apply failed for %r", color)
-        self.push_chroma(color)
+            logger.exception("Binding failed: %r", binding)
 
     # -- chroma ------------------------------------------------------------
 
@@ -166,11 +170,11 @@ class Daemon:
             if msg.message == WM_TIMER:
                 self.reload_if_changed()
             elif msg.message == WM_HOTKEY:
-                color = self.hotkey_actions.get(msg.wParam)
-                if color:
-                    logger.info("Hotkey %d -> %r", msg.wParam, color)
+                binding = self.hotkey_actions.get(msg.wParam)
+                if binding:
+                    logger.info("Hotkey %d -> %r", msg.wParam, binding)
                     threading.Thread(
-                        target=self.apply_color, args=(color,), daemon=True).start()
+                        target=self.apply_binding, args=(binding,), daemon=True).start()
             user32.TranslateMessage(ctypes.byref(msg))
             user32.DispatchMessageW(ctypes.byref(msg))
         self.stop_event.set()

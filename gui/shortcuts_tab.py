@@ -4,7 +4,7 @@
 2. pick the selector (shift / ctrl / alt / combos / Razer Hypershift —
    hypershift is offered only when a capable keyboard was detected)
 3. pick ANY keys (letters, number row, numpad, F-keys — free mix)
-4. pick a color for each key
+4. for each key bind a COLOR or a whole PRESET (rule)
 5. "Create shortcut files" builds shortcuts/<SetName>/<key>.vbs
 6. a. normal selector → the daemon registers the hotkeys itself
    b. hypershift → the folder opens, Razer Synapse opens, and a guide
@@ -26,7 +26,9 @@ from core import settings as settings_mod
 from core.keymap import KEY_GROUPS
 from core.settings import SHORTCUT_SELECTORS
 from gui import config_io, theme
-from gui.widgets import ADD, REMOVE, color_combo, secondary, tool_button
+from gui.widgets import (
+    ADD, REMOVE, binding_combo, binding_from_combo, secondary, tool_button,
+)
 
 SYNAPSE_CANDIDATES = [
     Path(r"C:\Program Files\Razer\RazerAppEngine\RazerAppEngine.exe"),
@@ -166,10 +168,10 @@ class ShortcutsTab(QWidget):
         current = self._current()
         if not current:
             return
-        for i, (key, color) in enumerate(current["bindings"].items()):
-            combo = color_combo(self.raw, color)
-            combo.currentTextChanged.connect(
-                lambda value, k=key: self._store_binding(k, value))
+        for i, (key, binding) in enumerate(current["bindings"].items()):
+            combo = binding_combo(self.raw, binding)
+            combo.currentIndexChanged.connect(
+                lambda _index, k=key, c=combo: self._store_binding(k, c))
             remove = tool_button(REMOVE, "Remove this key")
             remove.clicked.connect(lambda _=False, k=key: self._remove_key(k))
             row, col = i % 8, (i // 8) * 3
@@ -230,7 +232,7 @@ class ShortcutsTab(QWidget):
     def _add_key(self, key: str) -> None:
         current = self._current()
         first_color = next(iter(self.raw["colors"]))
-        current["bindings"][key] = first_color
+        current["bindings"][key] = {"color": first_color}
         self._rebuild_bindings()
 
     def _remove_key(self, key: str) -> None:
@@ -238,10 +240,11 @@ class ShortcutsTab(QWidget):
         current["bindings"].pop(key, None)
         self._rebuild_bindings()
 
-    def _store_binding(self, key: str, color: str) -> None:
+    def _store_binding(self, key: str, combo) -> None:
         current = self._current()
-        if current is not None and not self._loading:
-            current["bindings"][key] = color
+        binding = binding_from_combo(combo)
+        if current is not None and binding is not None and not self._loading:
+            current["bindings"][key] = binding
 
     def _create_files(self) -> None:
         """Owner flow steps 5-6: save, build the set's folder, then either
