@@ -2,7 +2,7 @@
 
 *(formerly Auto OpenRGB)*
 
-Automatic RGB lighting scheduling for Windows. Color presets are applied to selected OpenRGB devices by rules — hours, days of the week, days of the month, months, or the actual daylight arc (solar-computed sunrise/twilight/night) — plus keyboard shortcuts, all driven by one config file and one Task Scheduler task.
+Automatic RGB lighting scheduling for Windows. Named colors are applied to selected OpenRGB devices by rule-based presets — hours, days of the week, days of the month, months, or the real daylight arc (solar-computed sunrise, two twilight zones, night) — plus keyboard shortcuts. One config file, one packaged app.
 
 ## 📋 Table of Contents
 
