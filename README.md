@@ -2,7 +2,7 @@
 
 *(formerly Auto OpenRGB)*
 
-Automatic RGB lighting profile switching by time of day for Windows. Defines profiles per time slot (dawn, morning, day, evening, night), generates VBS keyboard shortcuts, and creates Windows Task Scheduler tasks that run OpenRGB with the right profile automatically.
+Automatic RGB lighting scheduling for Windows. Color presets are applied to selected OpenRGB devices by rules — hours, days of the week, days of the month, months, or the actual daylight arc (solar-computed sunrise/twilight/night) — plus keyboard shortcuts, all driven by one config file and one Task Scheduler task.
 
 ## 📋 Table of Contents
 
@@ -10,6 +10,7 @@ Automatic RGB lighting profile switching by time of day for Windows. Defines pro
 - [File Structure](#file-structure)
 - [Getting Started](#getting-started)
 - [Configuration](#configuration)
+- [Keyboard Shortcuts](#keyboard-shortcuts)
 - [Troubleshooting](#troubleshooting)
 - [Documentation](#documentation)
 
@@ -19,23 +20,30 @@ Automatic RGB lighting profile switching by time of day for Windows. Defines pro
 
 ## ⚡ How It Works
 
-```mermaid
-flowchart LR
-    A[Windows Start] --> B[OpenRGB Server]
-    A --> C[Autoprofile Task]
-    C --> D{Server running?}
-    D -->|Yes| E[Instant change]
-    D -->|No| F[2-3 sec delay]
+**Compute, don't generate:** there are no saved OpenRGB profiles and no per-combination scripts. One resolver computes the active color for any moment from the rules in `config.json` and applies it through the OpenRGB SDK server — only to the devices you selected (e.g. skipping a Razer keyboard that Synapse controls).
 
-    G[Scheduled Tasks] -->|05:00, 08:00...| H[Change profile]
+```mermaid
+%%{init: {'flowchart': {'subGraphTitleMargin': {'top': 0, 'bottom': 35}}}}%%
+flowchart LR
+    subgraph TRIGGERS["Triggers"]
+        A[Task tick: log on / resume / 10 min]
+        B[Synapse slot file]
+        C[Hotkey daemon - Phase 2]
+    end
+
+    subgraph ENGINE["Resolver"]
+        D{Schedule type}
+        E[Active preset]
+    end
+
+    A --> D
+    B --> E
+    C --> E
+    D --> E
+    E -->|SDK, Direct mode| F[Selected OpenRGB devices]
 ```
 
-**OpenRGB server** starts automatically with Windows (hidden, no window).
-
-| Scenario | Speed |
-|----------|-------|
-| Server running | ⚡ Instant |
-| Server not running | 🕐 2-3 sec delay |
+The tick stores its last decision and skips applying when nothing changed, so the 10-minute cadence costs nothing — it exists for minute-precision daylight boundaries.
 
 ---
 
@@ -45,36 +53,17 @@ flowchart LR
 
 ```
 📁 Ultra Vivid/
-  ⚙️ config.json              ← THE ONLY FILE YOU EDIT
-  🔧 setup.ps1                ← Run after changes
-  📝 setup.md                 ← Documentation for setup.ps1
-  📝 README.md
-  📝 CLAUDE.md
-  📁 generated/               ← Auto-generated VBS scripts
-    📝 __index.md
-    🔧 autoprofile.vbs
-    🔧 autorainbow.vbs
-  📁 lib/                     ← Helper scripts
-    📝 __index.md
-    🔧 init.ps1
-    🔧 generate-bat.ps1
-    🔧 generate-vbs.ps1
-    🔧 create-tasks.ps1
-  📁 cycle/                   ← Daily profiles + extras
-    📝 __index.md
-    🔧 *.vbs (auto-generated)
-  📁 rainbow/                 ← Rainbow profiles
-    📝 __index.md
-    🔧 *.vbs (auto-generated)
-  📁 gui/                     ← GUI Setup Wizard (Python)
-    📝 __index.md
-    🔧 gui.py
-    🔧 profile_scanner.py
-    🔧 config_writer.py
-    🔧 runner.py
+  ⚙️ config.json         ← THE ONLY FILE YOU EDIT (schema v2)
+  🐍 resolver.py         ← The engine entry point
+  🔧 install-task.ps1    ← Run once: registers the scheduled task
+  📁 core/               ← Engine: settings, solar, schedule, apply
+  📁 shortcuts/          ← Stable slot files for Synapse bindings (generated)
+  📁 gui/                ← Setup GUI (Phase 2 rewrite pending)
+  📁 setup/              ← Build pipeline (installer)
+  📝 README.md, CLAUDE.md, version.py
 
-📁 Windows Startup/
-  🔧 OpenRGB-Server.vbs       ← Auto-generated
+Legacy (replaced by the resolver, removal pending in Phase 4):
+  🔧 setup.ps1, 📁 lib/, 📁 cycle/, 📁 rainbow/, 📁 generated/
 ```
 
 ---
@@ -83,27 +72,21 @@ flowchart LR
 
 ## 🚀 Getting Started
 
-### Setup Script
-
-1. Right-click **Start** → **Terminal (Admin)**
-2. Run:
+1. OpenRGB with the SDK server runs at startup (`OpenRGB-Server.vbs` in `shell:startup`, `--server --startminimized`).
+2. Install dependencies and register the task:
 
 ```powershell
 cd "U:\Coding\UVuruna\Gadgets\Ultra Vivid"
-Set-ExecutionPolicy Bypass -Scope Process
-.\setup.ps1
+pip install -r requirements.txt
+.\install-task.ps1
 ```
 
-### Generated Output
+3. Verify:
 
-| Output | Location |
-|--------|----------|
-| Task Scheduler tasks | Windows Task Scheduler |
-| autoprofile.vbs | `generated/` folder |
-| autorainbow.vbs | `generated/` folder |
-| Cycle VBS files | `cycle/` folder |
-| Rainbow VBS files | `rainbow/` folder |
-| OpenRGB-Server.vbs | Windows Startup folder |
+```powershell
+python resolver.py --dry-run        # what would be applied right now
+python resolver.py --list-devices   # devices as OpenRGB reports them
+```
 
 ---
 
@@ -111,64 +94,32 @@ Set-ExecutionPolicy Bypass -Scope Process
 
 ## ⚙️ Configuration
 
-### config.json Format
+Everything lives in `config.json` (schema v2). Full field reference: [Settings](core/settings.md).
 
-```json
-{
-    "openRGBPath": "C:\\Program Files\\OpenRGB\\OpenRGB.exe",
-    "schedules": {
-        "startHour": 5,
-        "items": [
-            { "taskName": "OpenRGB dawn", "vbsName": "1-dawn", "profile": "1-blue" },
-            { "taskName": "OpenRGB morning", "vbsName": "2-morning", "profile": "2-cyan" }
-        ]
-    },
-    "extras": [
-        { "vbsName": "light", "profile": "9-white" }
-    ],
-    "rainbow": {
-        "startHour": 0,
-        "items": [
-            { "vbsName": "F1", "profile": "UC-01-00F" }
-        ]
-    }
-}
-```
+- **`colorPresets`** — named colors (`{"cyan": ["00FFFF"]}`); a preset with N colors distributes them round-robin across the selected devices.
+- **`devices`** — `{"mode": "exclude", "names": ["Razer"]}`: substring match, case-insensitive; `include` mode selects only the named ones.
+- **`schedule.type`** — exactly ONE grouping per schedule:
 
-### Fields
+| Type | Rule |
+|------|------|
+| `hours` | `from`–`to` slots (to exclusive, wraps midnight); **uncovered hours = all RGB off** |
+| `weekdays` | all 7 days get a preset |
+| `monthdays` | day groups `from`–`to` inclusive (1–5, 5–10, …) |
+| `months` | all 12 months get a preset |
+| `daylight` | N day presets over the real sunrise→sunset arc (centered on solar noon), optional civil-twilight preset, optional night presets; no night list = off at night |
 
-| Field | Description | Example |
-|-------|-------------|---------|
-| `startHour` | Hour when the cycle begins | 5 (05:00) |
-| `taskName` | Name in Task Scheduler | "OpenRGB dawn" |
-| `vbsName` | VBS filename (without .vbs) | "1-dawn" |
-| `profile` | Profile name in OpenRGB | "1-blue" |
+`daylight` needs `location` (latitude/longitude/timezone) — solar events are computed locally, no internet involved. Semantics detail: [Schedule](core/schedule.md).
 
-### Auto-Calculated Times
+---
 
-Times are **automatically calculated** based on:
-- `startHour` - hour when the cycle begins
-- Number of profiles in the list
+<a id="keyboard-shortcuts"></a>
 
-```
-duration = 24 / number_of_profiles
-time = (startHour + duration * index) % 24
-```
+## ⌨️ Keyboard Shortcuts
 
-**Example for 8 profiles with startHour=5:**
-| Profile | Time |
-|---------|------|
-| 1-blue | 05:00 |
-| 2-cyan | 08:00 |
-| 3-green | 11:00 |
-| ... | ... |
-| 8-purple | 02:00 |
+Shortcut **sets** in config bind keys to color presets (`selector` = shift / ctrl / ctrl+shift / alt+shift / hypershift; `keys` = fkeys / numrow / numpad / qwerty).
 
-### Adding / Modifying Profiles
-
-1. Create the profile in OpenRGB and save it
-2. Edit `config.json` - add new item to the list
-3. Run `.\setup.ps1` (as Admin)
+- **Standard selectors** will be served by the hotkey daemon (Phase 2).
+- **Razer Hypershift** has no automation API — instead, `python resolver.py --write-slots` generates **stable** `shortcuts/slot-*.vbs` files. Point a Synapse LAUNCH binding at a slot file ONCE; re-mapping what the slot does is then a pure config change. See [Shortcuts (folder)](shortcuts/__index.md).
 
 ---
 
@@ -176,24 +127,12 @@ time = (startHour + duration * index) % 24
 
 ## 🔧 Troubleshooting
 
-### "Connection attempt failed"
-
-OpenRGB server is not running.
-
-**Solution:** Check if `OpenRGB-Server.vbs` exists in Startup folder:
-- `Win+R` → `shell:startup`
-
-### Autoprofile shows wrong color
-
-Run `generated/autoprofile.vbs` manually by double-clicking. The script uses `Hour(Now)` which is reliable across all Windows locales.
-
-If still wrong, check your system clock settings.
-
-### Server doesn't start on boot
-
-1. Open `shell:startup`
-2. Double-click `OpenRGB-Server.vbs`
-3. Check if it works
+| Symptom | Check |
+|---------|-------|
+| No colors at boot | Is `OpenRGB-Server.vbs` in `shell:startup`? The resolver retries for 60 s while the server starts |
+| Wrong color | `python resolver.py --dry-run` shows the decision; `logs/resolver.log` shows what was applied |
+| Nothing applies | `python resolver.py --list-devices` — is the SDK server reachable on 6742? |
+| Config rejected | The error names the exact field; the resolver refuses to half-run a broken config |
 
 ---
 
@@ -201,54 +140,12 @@ If still wrong, check your system clock settings.
 
 ## 📚 Documentation
 
-### Main Documentation
-
-| File | Description |
-|------|-------------|
-| [README.md](README.md) | This file - overview and instructions |
-| [CLAUDE.md](CLAUDE.md) | AI assistant guidelines |
-| [setup.md](setup.md) | Documentation for setup.ps1 |
-
-### Folder Documentation
-
-| Folder | Documentation | Description |
-|--------|---------------|-------------|
-| `generated/` | [generated/__index.md](generated/__index.md) | Auto-generated VBS scripts |
-| `lib/` | [lib/__index.md](lib/__index.md) | Helper scripts for setup.ps1 |
-| `cycle/` | [cycle/__index.md](cycle/__index.md) | VBS for daily profiles |
-| `rainbow/` | [rainbow/__index.md](rainbow/__index.md) | VBS for rainbow profiles |
-| `gui/` | [gui/__index.md](gui/__index.md) | GUI Setup Wizard (Python) |
-
-### Script Documentation
-
-Detailed documentation for each script is in the `lib/` folder:
-
-| Script | Documentation | Description |
-|--------|---------------|-------------|
-| init.ps1 | [init.md](lib/init.md) | Initialization, config, cleanup |
-| generate-bat.ps1 | [generate-bat.md](lib/generate-bat.md) | VBS script generation (autoprofile, autorainbow) |
-| generate-vbs.ps1 | [generate-vbs.md](lib/generate-vbs.md) | VBS file generation (cycle, rainbow) |
-| create-tasks.ps1 | [create-tasks.md](lib/create-tasks.md) | Task Scheduler task creation |
-
----
-
-## 🔄 Startup Flow
-
-```mermaid
-sequenceDiagram
-    participant W as Windows
-    participant S as OpenRGB Server
-    participant A as Autoprofile Task
-    participant T as Scheduled Tasks
-
-    W->>S: Start (Startup folder)
-    W->>A: Trigger (At Log On)
-    A->>A: Determine hour
-    A->>S: Apply profile (instant)
-
-    Note over T: Throughout the day...
-    T->>S: 05:00 - blue
-    T->>S: 08:00 - cyan
-    T->>S: 11:00 - green
-    T->>S: ...
-```
+| Area | Doc |
+|------|-----|
+| Engine | [Core (folder)](core/__index.md) → [Settings](core/settings.md), [Solar](core/solar.md), [Schedule](core/schedule.md), [Apply](core/apply.md) |
+| Entry point | [Resolver](resolver.md) |
+| Scheduled task | [Install Task](install-task.md) |
+| Synapse slots | [Shortcuts (folder)](shortcuts/__index.md) |
+| Setup GUI (legacy, Phase 2 rewrite) | [GUI (folder)](gui/__index.md) |
+| Build pipeline | [Setup (folder)](setup/__setup.md) |
+| AI guidance | [CLAUDE.md](CLAUDE.md) |

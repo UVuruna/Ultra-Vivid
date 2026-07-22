@@ -9,26 +9,34 @@ that first; only project facts and deltas live here.
 
 ## Project Facts
 
-- **Product:** automatic RGB lighting profile switching based on time of day.
-  Reads a config defining profiles per time slot (dawn, morning, day, evening,
-  night), generates VBS scripts for keyboard-shortcut triggers, and creates
-  Windows Task Scheduler tasks that run OpenRGB with the correct profile.
-- **Stack:** PowerShell, Python, VBScript, Windows Task Scheduler, OpenRGB;
-  PySide6 GUI for profile management.
-- **Config-driven:** time-slot profiles live in `config.json` (Rule #4) —
-  nothing about the schedule is hardcoded.
+- **Product:** rule-based RGB scheduling. Color presets are applied to a
+  user-selected subset of OpenRGB devices by ONE schedule grouping (hours /
+  weekdays / monthdays / months / solar daylight) plus keyboard shortcuts.
+  **Compute, don't generate (root Rule #19):** no `.orp` profiles, no
+  per-combination scripts — `resolver.py` computes the color for any moment.
+- **Stack:** Python 3.13 (`openrgb-python` SDK client, `astral` solar math —
+  same library/convention as DOMY Watch), one Task Scheduler task
+  (`Ultra Vivid resolver`: log on + resume + 10-min tick), PySide6 GUI
+  (Phase 2 rewrite pending). OpenRGB runs as SDK server from Startup.
+- **Config-driven:** everything lives in `config.json` schema v2 (Rule #4);
+  `core/settings.py` validates loudly and refuses old-schema configs.
+- **Synapse boundary (researched 2026-07-22):** Razer Synapse bindings have
+  NO automation API and Hypershift never reaches the OS — hence the stable
+  `shortcuts/slot-*.vbs` contract (bind LAUNCH once, re-map via config).
+  Razer keyboard lighting IS programmable via Chroma REST API (Phase 3
+  optional module).
 
 ## Data Flow
 
 ```mermaid
 flowchart LR
-    A[config.json] --> B[setup.ps1]
-    B --> C[autoprofile.bat]
-    B --> D[VBS files]
-    B --> E[Task Scheduler]
-    F[Windows Start] --> G[OpenRGB Server]
-    G --> D
-    E --> C
+    A[config.json] --> R[resolver.py]
+    T[Task tick / Synapse slot / hotkey] --> R
+    R --> S[core: schedule + solar]
+    S --> R
+    R -->|SDK 6742, Direct mode| D[Selected devices]
+    W[Windows Start] --> O[OpenRGB Server]
+    O -.-> D
 ```
 
 ## Project Deltas to the Root Rules
@@ -48,4 +56,5 @@ flowchart LR
 ## Key Documentation
 
 - [README.md](README.md) — overview, usage, technical documentation
-- Folder docs: `lib/__index.md`, `cycle/__index.md`, `rainbow/__index.md`
+- Engine: `core/__index.md`, `resolver.md`, `install-task.md`, `shortcuts/__index.md`
+- Legacy (pending Phase 4 removal): `lib/`, `cycle/`, `rainbow/`, `generated/`, `setup.ps1`, `gui/`
