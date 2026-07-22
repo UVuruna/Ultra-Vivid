@@ -11,6 +11,7 @@ trigger for resume-from-sleep) run elevated once — the proven approach.
 """
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -36,16 +37,32 @@ def _action(*args: str) -> tuple[str, str]:
     return pythonw, " ".join(f'"{part}"' if " " in part else part for part in inner)
 
 
-def _build_script() -> str:
-    resolver_exe, resolver_args = _action("--tick")
-    daemon_exe, daemon_args = _action("--daemon")
-
+def _write_server_vbs() -> Path:
+    """Write OpenRGB-Server.vbs to the Startup folder from Python — kept
+    out of the PowerShell here-string to avoid nested-quote hell."""
     try:
         openrgb_path = json.loads(
             paths.CONFIG_PATH.read_text(encoding="utf-8"))["openrgb"]["path"]
     except (OSError, KeyError, json.JSONDecodeError):
         openrgb_path = r"C:\Program Files\OpenRGB\OpenRGB.exe"
 
+    startup = Path(os.environ["APPDATA"]) / "Microsoft" / "Windows" \
+        / "Start Menu" / "Programs" / "Startup"
+    startup.mkdir(parents=True, exist_ok=True)
+    server_vbs = startup / "OpenRGB-Server.vbs"
+    quote = '"' * 3   # VBS needs the path wrapped in doubled quotes
+    server_vbs.write_text(
+        'Set WshShell = CreateObject("WScript.Shell")\n'
+        f'WshShell.Run {quote}{openrgb_path}"" --server --startminimized", 0\n'
+        "WScript.Quit\n",
+        encoding="ascii",
+    )
+    return server_vbs
+
+
+def _build_script() -> str:
+    resolver_exe, resolver_args = _action("--tick")
+    daemon_exe, daemon_args = _action("--daemon")
     legacy_list = ", ".join(f'"{name}"' for name in LEGACY_TASKS)
 
     return f"""
@@ -77,14 +94,6 @@ $dTask.Author = "UV"
 Register-ScheduledTask -TaskName "{DAEMON_TASK}" -InputObject $dTask -Force | Out-Null
 Write-Host "Registered: {DAEMON_TASK}"
 
-$serverVbs = Join-Path ([Environment]::GetFolderPath('Startup')) "OpenRGB-Server.vbs"
-@'
-Set WshShell = CreateObject("WScript.Shell")
-WshShell.Run """{openrgb_path}"" --server --startminimized", 0
-WScript.Quit
-'@ | Out-File -FilePath $serverVbs -Encoding ASCII
-Write-Host "Startup server: $serverVbs"
-
 foreach ($name in @({legacy_list})) {{
     $t = Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
     if ($t) {{ Unregister-ScheduledTask -TaskName $name -Confirm:$false -ErrorAction SilentlyContinue; Write-Host "Removed legacy: $name" }}
@@ -96,6 +105,7 @@ def install(elevated: bool = False) -> None:
     """Register the tasks. When not already elevated, relaunch this same
     step under UAC and wait for it."""
     paths.ensure_state()
+    _write_server_vbs()
     script = _build_script()
     script_file = Path(tempfile.gettempdir()) / "ultravivid_install_tasks.ps1"
     script_file.write_text(script, encoding="utf-8")
