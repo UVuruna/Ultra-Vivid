@@ -134,7 +134,7 @@ class MainWindow(QMainWindow):
             return
         result = subprocess.run(
             paths.launcher_command("--force"),
-            capture_output=True, text=True, timeout=90)
+            capture_output=True, text=True, timeout=90, **paths.no_window())
         if result.returncode == 0:
             self.statusBar().showMessage("Applied.", 4000)
         else:
@@ -146,5 +146,5 @@ class MainWindow(QMainWindow):
             return
         # --install-tasks re-launches itself elevated (UAC) and registers
         # the resolver + daemon tasks pointing at THIS program.
-        subprocess.Popen(paths.launcher_command("--install-tasks"))
+        subprocess.Popen(paths.launcher_command("--install-tasks"), **paths.no_window())
         self.statusBar().showMessage("Task installer launched (UAC).", 6000)

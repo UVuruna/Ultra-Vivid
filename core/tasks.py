@@ -111,12 +111,15 @@ def install(elevated: bool = False) -> None:
     script_file.write_text(script, encoding="utf-8")
 
     if elevated:
+        # Already elevated (NSIS installer / re-launch): run directly, no window.
         subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
-                        "-File", str(script_file)], check=False)
+                        "-WindowStyle", "Hidden", "-File", str(script_file)],
+                       check=False, **paths.no_window())
     else:
+        # Elevate via UAC; the spawned registration window stays hidden.
         subprocess.run([
             "powershell", "-NoProfile", "-Command",
             f'Start-Process powershell -ArgumentList '
-            f'"-NoProfile -ExecutionPolicy Bypass -File `"{script_file}`"" '
-            f'-Verb RunAs -Wait'
-        ], check=False)
+            f'"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"{script_file}`"" '
+            f'-Verb RunAs -Wait -WindowStyle Hidden'
+        ], check=False, **paths.no_window())
