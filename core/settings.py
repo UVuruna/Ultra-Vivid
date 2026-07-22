@@ -63,13 +63,25 @@ class ShortcutSet:
 
 
 @dataclass(frozen=True)
+class ChromaSettings:
+    """Optional Razer Chroma module: color the keyboard alongside the
+    schedule WITHOUT touching Synapse key bindings (held by the daemon —
+    Chroma sessions die without heartbeat, so a one-shot cannot do it)."""
+    enabled: bool
+    follow_schedule: bool
+
+
+@dataclass(frozen=True)
 class Settings:
     openrgb: OpenRGBSettings
     location: Location
     devices: DeviceFilter
     color_presets: dict[str, list[str]]  # name -> list of RRGGBB hex strings
     schedule: Schedule
+    shortcuts_enabled: bool = True
     shortcut_sets: list[ShortcutSet] = field(default_factory=list)
+    chroma: ChromaSettings = field(
+        default_factory=lambda: ChromaSettings(False, True))
 
 
 def load(config_path: Path) -> Settings:
@@ -79,7 +91,12 @@ def load(config_path: Path) -> Settings:
         raw = json.loads(config_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as e:
         raise ConfigError(f"config.json is not valid JSON: {e}") from e
+    return parse(raw)
 
+
+def parse(raw: dict) -> Settings:
+    """Validate a raw config dict (the GUI validates edits through this
+    before writing the file)."""
     if raw.get("version") != CONFIG_VERSION:
         raise ConfigError(
             f"config.json version is {raw.get('version')!r}, expected {CONFIG_VERSION}. "
@@ -112,7 +129,12 @@ def load(config_path: Path) -> Settings:
         devices=DeviceFilter(mode=dev["mode"], names=list(dev.get("names", []))),
         color_presets=presets,
         schedule=schedule,
+        shortcuts_enabled=bool(raw.get("shortcuts", {}).get("enabled", True)),
         shortcut_sets=shortcut_sets,
+        chroma=ChromaSettings(
+            enabled=bool(raw.get("chroma", {}).get("enabled", False)),
+            follow_schedule=bool(raw.get("chroma", {}).get("followSchedule", True)),
+        ),
     )
 
 
