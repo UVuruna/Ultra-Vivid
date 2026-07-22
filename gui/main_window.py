@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout, QWidget,
 )
 
+from core import apply as rgb
 from core import schedule
 from core import settings as settings_mod
 from core.settings import ConfigError
@@ -40,10 +41,16 @@ class MainWindow(QMainWindow):
 
         self.raw = config_io.load_raw()
 
+        try:
+            hypershift_available = rgb.detect_hypershift_keyboard(
+                settings_mod.parse(self.raw))
+        except ConfigError:
+            hypershift_available = False
+
         self.presets_tab = PresetsTab(self.raw)
         self.schedule_tab = ScheduleTab(self.raw)
         self.devices_tab = DevicesTab(self.raw)
-        self.shortcuts_tab = ShortcutsTab(self.raw)
+        self.shortcuts_tab = ShortcutsTab(self.raw, hypershift_available)
         self.presets_tab.presets_changed.connect(self.schedule_tab.reload)
         self.presets_tab.presets_changed.connect(self.shortcuts_tab.reload)
 

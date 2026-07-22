@@ -14,8 +14,8 @@ WEEKDAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 MONTH_KEYS = ["jan", "feb", "mar", "apr", "may", "jun",
               "jul", "aug", "sep", "oct", "nov", "dec"]
 SCHEDULE_TYPES = ["hours", "weekdays", "monthdays", "months", "daylight"]
-SHORTCUT_SELECTORS = ["shift", "ctrl", "ctrl+shift", "alt+shift", "hypershift"]
-SHORTCUT_KEYSETS = ["fkeys", "numrow", "numpad", "qwerty"]
+SHORTCUT_SELECTORS = ["shift", "ctrl", "alt", "ctrl+shift", "alt+shift",
+                      "ctrl+alt", "hypershift"]
 
 
 class ConfigError(Exception):
@@ -57,9 +57,9 @@ class Schedule:
 
 @dataclass(frozen=True)
 class ShortcutSet:
+    name: str                # user-chosen set name (also the slot folder name)
     selector: str            # one of SHORTCUT_SELECTORS
-    keys: str                # one of SHORTCUT_KEYSETS
-    bindings: dict[str, str] # key label -> preset name
+    bindings: dict[str, str] # key label (any mix from keymap) -> preset name
 
 
 @dataclass(frozen=True)
@@ -214,14 +214,23 @@ def _parse_schedule(raw: dict, presets: dict) -> Schedule:
 
 
 def _parse_shortcuts(raw: dict, presets: dict) -> list[ShortcutSet]:
+    from core.keymap import VIRTUAL_KEYS
+
     sets = []
+    names: set[str] = set()
     for i, s in enumerate(raw.get("shortcuts", {}).get("sets", [])):
+        name = (s.get("name") or "").strip()
+        if not name:
+            raise ConfigError(f"shortcuts.sets[{i}] needs a non-empty name")
+        if name.lower() in names:
+            raise ConfigError(f"shortcuts.sets[{i}]: duplicate set name {name!r}")
+        names.add(name.lower())
         if s.get("selector") not in SHORTCUT_SELECTORS:
             raise ConfigError(f"shortcuts.sets[{i}].selector must be one of {SHORTCUT_SELECTORS}")
-        if s.get("keys") not in SHORTCUT_KEYSETS:
-            raise ConfigError(f"shortcuts.sets[{i}].keys must be one of {SHORTCUT_KEYSETS}")
         bindings = s.get("bindings", {})
         for key, preset in bindings.items():
+            if key not in VIRTUAL_KEYS:
+                raise ConfigError(f"shortcuts.sets[{i}]: unknown key {key!r}")
             _require_preset(presets, preset, f"shortcuts.sets[{i}].bindings[{key!r}]")
-        sets.append(ShortcutSet(selector=s["selector"], keys=s["keys"], bindings=bindings))
+        sets.append(ShortcutSet(name=name, selector=s["selector"], bindings=bindings))
     return sets

@@ -35,8 +35,10 @@ Live device list from the OpenRGB SDK with check boxes (unchecked =
 excluded), plus the optional Razer Chroma module toggles.
 
 ### `shortcuts_tab.py` — Shortcuts Tab
-Shortcut sets: selector + key row + per-key preset bindings, and the
-"Write slot files" action for Synapse Hypershift bindings.
+The owner's flow: named set → selector (hypershift offered only when a
+Razer keyboard is detected) → ANY keys → color per key → "Create
+shortcut files" (normal: daemon auto-registers; hypershift: folder +
+Synapse + linking guide open).
 
 ## Connections
 

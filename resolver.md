@@ -14,7 +14,7 @@ and — in Phase 2 — the hotkey daemon.
 | *(no args)* | Tick: resolve schedule → apply; skips when unchanged |
 | `--dry-run` | Print the decision, touch nothing |
 | `--preset NAME` | Apply a named color preset now |
-| `--shortcut SET:KEY` | Apply the preset bound to that shortcut slot |
+| `--shortcut "SetName:key"` | Apply the preset that set binds to that key (stale slot = quiet no-op) |
 | `--off` | All selected devices off |
 | `--force` | Apply even when unchanged |
 | `--list-devices` | Show devices as the SDK server reports them |

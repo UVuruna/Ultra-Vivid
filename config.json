@@ -156,8 +156,8 @@
         "enabled": true,
         "sets": [
             {
+                "name": "Rainbow",
                 "selector": "shift",
-                "keys": "fkeys",
                 "bindings": {
                     "F1": "rainbow-01",
                     "F2": "rainbow-02",

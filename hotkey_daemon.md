@@ -17,12 +17,16 @@ windowless) serving the two features that need a resident process:
 
 ```
 IF another instance runs (named mutex) -> exit
-IF no daemon hotkeys AND chroma off    -> log + exit
 REGISTER hotkeys from config (skip hypershift sets)
 START chroma thread (heartbeat every 5 s; follow schedule each minute)
-LOOP on Windows messages:
-    WM_HOTKEY -> reload config if file changed -> apply preset (thread)
+START 5 s timer; LOOP on Windows messages:
+    WM_TIMER  -> config.json changed? -> reload + re-register hotkeys
+    WM_HOTKEY -> apply the bound preset (worker thread)
 ```
+
+The daemon stays resident even with nothing registered — the GUI may
+add a set at any moment and it activates within 5 s, no restart. All
+(un)registration happens on the message-loop thread (Win32 requirement).
 
 Failures are logged to `logs/daemon.log` and never crash the loop; a
 hotkey another app already owns is logged as a warning (Rule #1).

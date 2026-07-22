@@ -35,6 +35,8 @@ LOG_DIR = PROJECT_DIR / "logs"
 MUTEX_NAME = "UltraVivid-Daemon"
 SCHEDULE_POLL_SECONDS = 60.0
 WM_HOTKEY = 0x0312
+WM_TIMER = 0x0113
+RELOAD_POLL_MS = 5000  # config change pickup (new sets register within 5 s)
 
 logger = logging.getLogger("daemon")
 user32 = ctypes.windll.user32
@@ -149,21 +151,21 @@ class Daemon:
     # -- main loop ---------------------------------------------------------
 
     def run(self) -> None:
-        needs_hotkeys = self.cfg.shortcuts_enabled and any(
-            s.selector in MODIFIER_FLAGS for s in self.cfg.shortcut_sets)
-        if not needs_hotkeys and not self.cfg.chroma.enabled:
-            logger.info("Nothing to do (no daemon hotkeys, Chroma off) — exiting.")
-            return
-
+        """Stays resident even with nothing registered — the GUI may add
+        a set at any moment; the WM_TIMER poll picks it up within 5 s.
+        Hotkey (un)registration always happens on THIS thread — Win32
+        ties RegisterHotKey to the registering thread's message queue."""
         self.register_hotkeys()
         chroma_worker = threading.Thread(target=self.chroma_thread, daemon=True)
         chroma_worker.start()
+        user32.SetTimer(None, 0, RELOAD_POLL_MS, None)
 
         logger.info("Daemon running.")
         msg = ctypes.wintypes.MSG()
         while user32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
-            if msg.message == WM_HOTKEY:
+            if msg.message == WM_TIMER:
                 self.reload_if_changed()
+            elif msg.message == WM_HOTKEY:
                 preset = self.hotkey_actions.get(msg.wParam)
                 if preset:
                     logger.info("Hotkey %d -> %r", msg.wParam, preset)

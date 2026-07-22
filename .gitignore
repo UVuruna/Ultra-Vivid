@@ -33,8 +33,8 @@ assets/UltraVivid.ico
 # Resolver runtime output (log + last-applied state)
 logs/
 
-# Generated Synapse slot files (embed local Python path; rebuilt via --write-slots)
-shortcuts/*.vbs
+# Generated per-set slot folders (embed local Python path; rebuilt via --write-slots)
+shortcuts/*/
 
 # Owner inbox - local only (root Rule #18)
 UV/

@@ -122,10 +122,11 @@ Everything lives in `config.json` (schema v2). Full field reference: [Settings](
 
 ## ⌨️ Keyboard Shortcuts
 
-Shortcut **sets** in config bind keys to color presets (`selector` = shift / ctrl / ctrl+shift / alt+shift / hypershift; `keys` = fkeys / numrow / numpad / qwerty).
+A shortcut **set** is created in the GUI: name it (e.g. "DUGA") → pick a selector (shift / ctrl / alt / combos / **hypershift** — offered only when a Razer keyboard is detected) → pick ANY keys (letters, number row, numpad, F-keys — free mix) → pick a color preset per key → **Create shortcut files**.
 
-- **Standard selectors** are global hotkeys served by the resident daemon (`Ultra Vivid daemon` task, [Hotkey Daemon](hotkey_daemon.md)).
-- **Razer Hypershift** has no automation API — instead, `python resolver.py --write-slots` generates **stable** `shortcuts/slot-*.vbs` files. Point a Synapse LAUNCH binding at a slot file ONCE; re-mapping what the slot does is then a pure config change. See [Shortcuts (folder)](shortcuts/__index.md).
+- Every set gets its own folder `shortcuts/<SetName>/` with one VBS per key.
+- **Standard selectors**: the resident daemon registers the hotkeys itself within seconds — nothing manual ([Hotkey Daemon](hotkey_daemon.md)).
+- **Razer Hypershift** (no automation API exists): the GUI opens the set's folder and Razer Synapse with a step-by-step guide — link each key's file to a Synapse LAUNCH binding ONCE; re-mapping colors later is a pure config change. See [Shortcuts (folder)](shortcuts/__index.md).
 - **Chroma module** (optional): the daemon can color the Razer keyboard through the Chroma REST API while Synapse keeps all key bindings — see [Chroma](core/chroma.md).
 
 ---

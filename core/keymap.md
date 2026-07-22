@@ -10,8 +10,8 @@ the daemon maps the same labels to Win32 virtual-key codes and
 
 | Table | Contents |
 |-------|----------|
-| `KEY_ROWS` | key labels per row: fkeys, numrow, numpad, qwerty (12 each) |
-| `VIRTUAL_KEYS` | label → Win32 VK code |
+| `VIRTUAL_KEYS` | every supported key label → Win32 VK code (F-keys, digits, numpad, letters, punctuation) — a set may mix ANY of them |
+| `KEY_GROUPS` | display grouping for the GUI key-picker menu |
 | `MODIFIER_FLAGS` | selector → RegisterHotKey flags (hypershift absent by design — Synapse territory) |
 
 ## Connections

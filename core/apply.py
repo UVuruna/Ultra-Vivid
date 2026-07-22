@@ -60,6 +60,23 @@ def selected_devices(client: OpenRGBClient, settings: Settings) -> list:
     return chosen
 
 
+def detect_hypershift_keyboard(settings: Settings) -> bool:
+    """True when a Hypershift-capable keyboard (Razer) is present.
+    Quick single-attempt probe; False when the server is unreachable."""
+    import dataclasses
+    quick = dataclasses.replace(
+        settings, openrgb=dataclasses.replace(settings.openrgb, connect_retries=1))
+    try:
+        client = connect(quick)
+    except ConnectionError:
+        return False
+    try:
+        return any(d.type.name == "KEYBOARD" and "razer" in d.name.lower()
+                   for d in client.devices)
+    finally:
+        client.disconnect()
+
+
 def apply_preset(settings: Settings, preset: str | None) -> None:
     """Apply `preset` (or all-off when None) to the selected devices."""
     colors = settings.color_presets[preset] if preset else ["000000"]

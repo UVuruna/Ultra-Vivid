@@ -5,10 +5,10 @@ Invocations:
                                             preset from the schedule and apply it
     python  resolver.py --dry-run           print the decision, touch nothing
     python  resolver.py --preset NAME       apply a named color preset directly
-    python  resolver.py --shortcut SET:KEY  apply the preset bound to a shortcut
-                                            (SET = set index, KEY = key label) —
-                                            the stable target for Synapse LAUNCH
-                                            bindings and the hotkey daemon
+    python  resolver.py --shortcut "SetName:key"
+                                            apply the preset that set binds to that
+                                            key — the target of the per-set slot
+                                            files; a stale slot is a quiet no-op
     python  resolver.py --list-devices      show devices as the server reports them
     python  resolver.py --off               all selected devices off
     python  resolver.py --write-slots       (re)generate shortcuts/slot-*.vbs —
@@ -72,38 +72,87 @@ def _write_state(preset: str | None) -> None:
     )
 
 
-def _shortcut_preset(cfg, spec: str) -> str:
-    set_index_str, _, key = spec.partition(":")
-    try:
-        shortcut_set = cfg.shortcut_sets[int(set_index_str)]
-    except (ValueError, IndexError):
-        raise SystemExit(f"--shortcut: no shortcut set {set_index_str!r} in config")
-    if key not in shortcut_set.bindings:
-        raise SystemExit(f"--shortcut: key {key!r} not bound in set {set_index_str}")
-    return shortcut_set.bindings[key]
+def _shortcut_preset(cfg, spec: str) -> str | None:
+    """Resolve 'SetName:key' (e.g. 'DUGA:q') to a preset name.
+
+    Returns None when the set or key no longer exists — a stale slot
+    file is a quiet no-op, never an error dialog on a keypress.
+    """
+    set_name, _, key = spec.partition(":")
+    for shortcut_set in cfg.shortcut_sets:
+        if shortcut_set.name.lower() == set_name.lower():
+            preset = shortcut_set.bindings.get(key)
+            if preset is None:
+                logger.info("Slot %s: key not bound — nothing to do.", spec)
+            return preset
+    logger.info("Slot %s: set not found — nothing to do.", spec)
+    return None
+
+
+# filesystem-safe filename tokens for key labels
+_KEY_FILE_TOKENS = {
+    "-": "minus", "=": "equals", "[": "lbracket", "]": "rbracket",
+    ";": "semicolon", "'": "quote", ",": "comma", ".": "dot",
+    "/": "slash", "`": "backtick",
+    "num.": "num-dot", "num+": "num-plus", "num-": "num-minus",
+    "num*": "num-star", "num/": "num-slash",
+}
+
+
+def _safe_folder(name: str) -> str:
+    return "".join(c for c in name if c not in '<>:"/\\|?*').strip() or "set"
+
+
+def write_set_folder(cfg, shortcut_set) -> Path:
+    """Create/refresh shortcuts/<SetName>/ with one VBS per chosen key.
+
+    Every set gets its folder (the files activate the RGB standalone);
+    for hypershift sets these are the files the user links in Synapse —
+    existing files never change content-meaningfully, so a link is
+    forever. Returns the folder path."""
+    pythonw = Path(sys.executable).parent / "pythonw.exe"
+    folder = SLOTS_DIR / _safe_folder(shortcut_set.name)
+    folder.mkdir(parents=True, exist_ok=True)
+    expected = set()
+    for key in shortcut_set.bindings:
+        file_name = f"{_KEY_FILE_TOKENS.get(key, key)}.vbs"
+        expected.add(file_name)
+        (folder / file_name).write_text(
+            f"' Ultra Vivid shortcut slot: set {shortcut_set.name!r}, key {key!r}.\n"
+            "' Bind Synapse LAUNCH to this file - the color it applies\n"
+            "' is defined in config.json, never here.\n"
+            'Set WshShell = CreateObject("WScript.Shell")\n'
+            f'WshShell.Run """{pythonw}"" ""{PROJECT_DIR / "resolver.py"}""'
+            f' --shortcut ""{shortcut_set.name}:{key}""", 0\n'
+            "WScript.Quit\n",
+            encoding="ascii",
+        )
+    for stale in folder.glob("*.vbs"):
+        if stale.name not in expected:
+            stale.unlink()
+            logger.info("Removed stale slot: %s", stale)
+    return folder
 
 
 def _write_slots(cfg) -> None:
-    """Generate one stable VBS per shortcut binding. Synapse LAUNCH
-    bindings point at these paths ONCE and never need re-binding: the
-    slot only names (set, key) — the bound preset lives in config."""
-    pythonw = Path(sys.executable).parent / "pythonw.exe"
+    """Refresh every set's folder and remove folders of deleted sets."""
     SLOTS_DIR.mkdir(exist_ok=True)
-    count = 0
-    for set_index, shortcut_set in enumerate(cfg.shortcut_sets):
-        for key in shortcut_set.bindings:
-            slot_path = SLOTS_DIR / f"slot-{set_index}-{key}.vbs"
-            slot_path.write_text(
-                "' Ultra Vivid stable shortcut slot - bind Synapse LAUNCH to this file.\n"
-                "' What it applies is defined in config.json, never here.\n"
-                'Set WshShell = CreateObject("WScript.Shell")\n'
-                f'WshShell.Run """{pythonw}"" ""{PROJECT_DIR / "resolver.py"}""'
-                f' --shortcut {set_index}:{key}", 0\n'
-                "WScript.Quit\n",
-                encoding="ascii",
-            )
-            count += 1
-    print(f"Wrote {count} slot files to {SLOTS_DIR}")
+    for old_flat in SLOTS_DIR.glob("slot-*.vbs"):
+        old_flat.unlink()  # pre-folder layout leftovers
+    expected_folders = set()
+    for shortcut_set in cfg.shortcut_sets:
+        folder = write_set_folder(cfg, shortcut_set)
+        expected_folders.add(folder.name)
+        print(f"{shortcut_set.name}: {len(shortcut_set.bindings)} slots -> {folder}")
+    for entry in SLOTS_DIR.iterdir():
+        if entry.is_dir() and entry.name not in expected_folders:
+            for f in entry.glob("*.vbs"):
+                f.unlink()
+            try:
+                entry.rmdir()
+                logger.info("Removed folder of deleted set: %s", entry.name)
+            except OSError:
+                logger.warning("Could not remove %s (extra files inside)", entry)
 
 
 def main() -> None:
@@ -140,9 +189,14 @@ def main() -> None:
         return
 
     if args.preset or args.shortcut:
-        preset = args.preset or _shortcut_preset(cfg, args.shortcut)
-        if preset not in cfg.color_presets:
-            raise SystemExit(f"unknown color preset {preset!r}")
+        if args.preset:
+            preset = args.preset
+            if preset not in cfg.color_presets:
+                raise SystemExit(f"unknown color preset {preset!r}")
+        else:
+            preset = _shortcut_preset(cfg, args.shortcut)
+            if preset is None:
+                return  # unbound slot: documented no-op
         rgb.apply_preset(cfg, preset)
         _write_state(preset)
         return
