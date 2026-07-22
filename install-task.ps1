@@ -1,9 +1,10 @@
-# install-task.ps1 - Register the single "Ultra Vivid resolver" scheduled task
+# install-task.ps1 - Register the Ultra Vivid scheduled tasks
 #
-# Replaces the legacy nine "OpenRGB *" tasks: the resolver computes the
-# active color itself on every tick, so one task covers the whole schedule.
-# Triggers: at log on, on resume from sleep, and every 10 minutes
-# (the tick is a no-op when the computed preset has not changed).
+#   1. "Ultra Vivid resolver" - log on + resume + 10-min tick; the resolver
+#      computes the active color itself, so ONE task covers the schedule
+#      (replaces the legacy nine "OpenRGB *" tasks).
+#   2. "Ultra Vivid daemon"   - log on; global hotkeys + optional Chroma.
+#   3. OpenRGB-Server.vbs in shell:startup (SDK server, hidden).
 #
 # Run:  .\install-task.ps1        (elevation only needed to delete legacy
 #                                  tasks that were created as admin)
@@ -46,6 +47,30 @@ $task.Author = "UV"
 
 Register-ScheduledTask -TaskName $taskName -InputObject $task -Force | Out-Null
 Write-Host "Registered task: $taskName (log on + resume + 10-min tick)" -ForegroundColor Green
+
+# -- Daemon task: global hotkeys + optional Chroma ------------------------
+$daemonName   = "Ultra Vivid daemon"
+$daemonScript = Join-Path $projectDir "hotkey_daemon.py"
+$daemonAction = New-ScheduledTaskAction -Execute $pythonw -Argument "`"$daemonScript`"" -WorkingDirectory $projectDir
+$daemonLogon  = New-ScheduledTaskTrigger -AtLogOn
+$daemonLogon.UserId = "$env:USERDOMAIN\$env:USERNAME"
+$daemonSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+    -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero)   # resident: no time cap
+
+$daemonTask = New-ScheduledTask -Action $daemonAction -Trigger $daemonLogon -Settings $daemonSettings
+$daemonTask.Author = "UV"
+Register-ScheduledTask -TaskName $daemonName -InputObject $daemonTask -Force | Out-Null
+Write-Host "Registered task: $daemonName (log on, resident)" -ForegroundColor Green
+
+# -- OpenRGB SDK server autostart (shell:startup) -------------------------
+$openRGBPath = (Get-Content (Join-Path $projectDir "config.json") -Raw | ConvertFrom-Json).openrgb.path
+$serverVbs = Join-Path ([Environment]::GetFolderPath('Startup')) "OpenRGB-Server.vbs"
+@"
+Set WshShell = CreateObject("WScript.Shell")
+WshShell.Run """$openRGBPath"" --server --startminimized", 0
+WScript.Quit
+"@ | Out-File -FilePath $serverVbs -Encoding ASCII
+Write-Host "Startup server script: $serverVbs" -ForegroundColor Green
 
 # -- Remove the legacy nine tasks -----------------------------------------
 $legacy = @("OpenRGB autoprofile", "OpenRGB zora", "OpenRGB jutro", "OpenRGB podne",
