@@ -31,15 +31,15 @@ PROJECT_DIR = Path(__file__).parent.parent
 ICO_PATH = PROJECT_DIR / "assets" / "UltraVivid.ico"
 STATUS_REFRESH_MS = 30_000
 MIN_WIDTH = 900               # owner spec: the shown width is the minimum
-ASPECT_H_PER_W = 2            # owner spec: open at W:H = 1:2 (portrait)
-SCREEN_MARGIN = 80
+MIN_HEIGHT = 700
+HEIGHT_SCREEN_FRACTION = 2    # owner spec: window height = screen height / 2
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Ultra Vivid")
-        self.setMinimumWidth(MIN_WIDTH)
+        self.setMinimumSize(MIN_WIDTH, MIN_HEIGHT)
         self._size_to_portrait()
         if ICO_PATH.exists():
             self.setWindowIcon(QIcon(str(ICO_PATH)))
@@ -96,12 +96,13 @@ class MainWindow(QMainWindow):
         self._timer.start(STATUS_REFRESH_MS)
 
     def _size_to_portrait(self) -> None:
-        """W:H = 1:2, clamped so the window always fits the screen."""
+        """Owner spec: NEVER full height — the window opens at HALF the
+        screen height (1:2 of the screen), min width 900."""
         screen = QGuiApplication.primaryScreen()
-        available = screen.availableGeometry() if screen else None
-        height = MIN_WIDTH * ASPECT_H_PER_W
-        if available is not None:
-            height = min(height, available.height() - SCREEN_MARGIN)
+        height = MIN_HEIGHT
+        if screen is not None:
+            height = max(MIN_HEIGHT,
+                         screen.availableGeometry().height() // HEIGHT_SCREEN_FRACTION)
         self.resize(MIN_WIDTH, height)
 
     # -- status ------------------------------------------------------------

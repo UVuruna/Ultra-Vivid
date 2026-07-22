@@ -15,8 +15,8 @@ from core.settings import MONTH_KEYS, PRESET_TYPES, WEEKDAY_KEYS
 from gui import theme
 from gui.location_picker import LocationPicker
 from gui.widgets import (
-    ADD, REMOVE, ColorSequence, color_combo, combo_value, secondary,
-    tool_button,
+    ADD, REMOVE, ColorSequence, color_combo, combo_value,
+    refresh_color_combo, secondary, tool_button,
 )
 
 _OFF_HINT = "Uncovered time = ALL RGB OFF."
@@ -119,8 +119,7 @@ class _MappingEditor(QWidget):
         preset = self.tab.current_preset()
         stored = preset.get(self.key, {}) if preset else {}
         for entry, combo in self.combos.items():
-            if entry in stored:
-                combo.setCurrentText(stored[entry])
+            refresh_color_combo(combo, self.tab.raw, stored.get(entry))
 
     def store(self) -> None:
         preset = self.tab.current_preset()
@@ -171,8 +170,10 @@ class _DaylightEditor(QWidget):
         d = preset.setdefault("daylight", {}) if preset else {}
         self.day.set_values(d.get("day", []))
         self.night.set_values(d.get("night", []))
-        self.twilight_morning.setCurrentText(d.get("twilightMorning") or "(none)")
-        self.twilight_evening.setCurrentText(d.get("twilightEvening") or "(none)")
+        refresh_color_combo(self.twilight_morning, self.tab.raw,
+                            d.get("twilightMorning"), allow_none=True)
+        refresh_color_combo(self.twilight_evening, self.tab.raw,
+                            d.get("twilightEvening"), allow_none=True)
 
     def store(self) -> None:
         preset = self.tab.current_preset()

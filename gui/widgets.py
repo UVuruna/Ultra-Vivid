@@ -45,6 +45,24 @@ def combo_value(combo: QComboBox) -> str | None:
     return None if text == NONE_ITEM else text
 
 
+def refresh_color_combo(combo: QComboBox, raw: dict, selected: str | None,
+                        allow_none: bool = False) -> None:
+    """Rebuild a color combo's item list from the CURRENT colors dict —
+    combos built once at construction would never see newly created
+    colors. Keeps the given selection, signals blocked."""
+    combo.blockSignals(True)
+    combo.clear()
+    if allow_none:
+        combo.addItem(NONE_ITEM)
+    for name, values in raw["colors"].items():
+        combo.addItem(theme.swatch_icon(values[0]), name)
+    if selected:
+        combo.setCurrentText(selected)
+    elif allow_none:
+        combo.setCurrentText(NONE_ITEM)
+    combo.blockSignals(False)
+
+
 class ColorSequence(QWidget):
     """Ordered list of color combos (daylight day/night arcs) with
     ➕ add, 🗑 remove and ⬆⬇ reorder on every row."""
