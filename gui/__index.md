@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Python tkinter GUI application for configuring Auto OpenRGB without editing config.json manually.
+PySide6 GUI application for configuring Ultra Vivid without editing config.json manually.
 
 ## Contents
 

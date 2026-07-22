@@ -1,5 +1,5 @@
 """
-Create a self-signed code signing certificate for AutoOpenRGB.
+Create a self-signed code signing certificate for Ultra Vivid.
 
 Run once to generate the certificate. The .pfx file is used by
 build.py to sign the exe. Keep the .pfx file private — do NOT
@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 CERT_DIR = Path(__file__).parent / "cert"
-PFX_PATH = CERT_DIR / "AutoOpenRGB.pfx"
+PFX_PATH = CERT_DIR / "UltraVivid.pfx"
 PASSWORD_PATH = CERT_DIR / "password.txt"
 PUBLISHER = "UVuruna"
 

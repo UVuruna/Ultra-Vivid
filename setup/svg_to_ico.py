@@ -1,5 +1,5 @@
 """
-Generate ICO file from assets/AutoOpenRGB.svg.
+Generate ICO file from assets/logo.svg.
 
 Renders with anti-aliased QPainter + supersampled downscale (Lanczos)
 for crisp results at every size.
@@ -22,7 +22,7 @@ SETUP_DIR = Path(__file__).parent
 PROJECT_DIR = SETUP_DIR.parent
 
 SVG_PATH = PROJECT_DIR / "assets" / "logo.svg"
-ICO_PATH = PROJECT_DIR / "assets" / "AutoOpenRGB.ico"
+ICO_PATH = PROJECT_DIR / "assets" / "UltraVivid.ico"
 
 # Standard Windows ICO sizes
 ICO_SIZES = [16, 32, 48, 64, 128, 256]

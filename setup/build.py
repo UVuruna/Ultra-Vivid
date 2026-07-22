@@ -1,8 +1,8 @@
 """
-Build AutoOpenRGB into a distributable package.
+Build UltraVivid into a distributable package.
 
 Steps:
-  1. Generate ICO from assets/AutoOpenRGB.svg (skipped gracefully if SVG missing)
+  1. Generate ICO from assets/logo.svg (skipped gracefully if SVG missing)
   2. Run PyInstaller (--onedir mode) to create the exe
   3. Sign the exe with self-signed certificate (optional)
   4. Call NSIS to create the installer
@@ -30,8 +30,8 @@ DIST_DIR = PROJECT_DIR / "dist"
 BUILD_DIR = PROJECT_DIR / "build"
 
 SVG_PATH = PROJECT_DIR / "assets" / "logo.svg"
-ICO_PATH = PROJECT_DIR / "assets" / "AutoOpenRGB.ico"
-CERT_PATH = SETUP_DIR / "cert" / "AutoOpenRGB.pfx"
+ICO_PATH = PROJECT_DIR / "assets" / "UltraVivid.ico"
+CERT_PATH = SETUP_DIR / "cert" / "UltraVivid.pfx"
 PASSWORD_PATH = SETUP_DIR / "cert" / "password.txt"
 NSI_PATH = SETUP_DIR / "installer.nsi"
 
@@ -53,7 +53,7 @@ def _load_password() -> str | None:
 
 APP_VERSION = _read_version()
 CERT_PASSWORD = _load_password()
-APP_NAME = "AutoOpenRGB"
+APP_NAME = "UltraVivid"
 ENTRY_POINT = PROJECT_DIR / "gui" / "gui.py"
 
 
@@ -133,7 +133,7 @@ def build_pyinstaller():
     if ICO_PATH.exists():
         cmd.extend(["--icon", str(ICO_PATH)])
     else:
-        print("  NOTE: AutoOpenRGB.ico not found — building without icon.")
+        print("  NOTE: UltraVivid.ico not found — building without icon.")
 
     # Bundle assets folder (contains icon at runtime)
     assets_dir = PROJECT_DIR / "assets"
@@ -161,7 +161,7 @@ def build_pyinstaller():
         print(f"  ERROR: Expected exe not found: {exe_path}")
         sys.exit(1)
 
-    # Copy ICO to dist so NSIS shortcuts can reference $INSTDIR\AutoOpenRGB.ico
+    # Copy ICO to dist so NSIS shortcuts can reference $INSTDIR\UltraVivid.ico
     if ICO_PATH.exists():
         dist_ico = DIST_DIR / APP_NAME / ICO_PATH.name
         shutil.copy2(ICO_PATH, dist_ico)

@@ -1,4 +1,4 @@
-# CLAUDE.md — Auto OpenRGB
+# CLAUDE.md — Ultra Vivid
 
 Project-specific guidance for Claude Code. **Inherits ALL rules from the
 monorepo root [CLAUDE.md](../../CLAUDE.md)** (mandatory workflow, Priorities,

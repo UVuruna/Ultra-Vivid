@@ -1,10 +1,10 @@
 Unicode true
 
 ; =================================================================
-; AutoOpenRGB Installer -- NSIS Script
+; UltraVivid Installer -- NSIS Script
 ;
 ; Creates a standard Windows installer:
-;   - Choose install location (default: Program Files\AutoOpenRGB)
+;   - Choose install location (default: Program Files\UltraVivid)
 ;   - Start Menu + Desktop shortcuts
 ;   - Optional autostart with Windows
 ;   - Uninstaller in Add/Remove Programs
@@ -14,9 +14,9 @@ Unicode true
 !include "FileFunc.nsh"
 
 ; -- App Info -----------------------------------------------------
-!define APP_NAME "AutoOpenRGB"
+!define APP_NAME "UltraVivid"
 !define APP_PUBLISHER "UVuruna"
-!define APP_EXE "AutoOpenRGB.exe"
+!define APP_EXE "UltraVivid.exe"
 !define APP_DESCRIPTION "RGB profile scheduler for OpenRGB"
 
 ; APP_VERSION passed from build.py via /DAPP_VERSION flag
@@ -28,7 +28,7 @@ Unicode true
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}"
 
 ; -- Paths (passed from build.py via /D flags) --------------------
-; DIST_DIR -- PyInstaller output (dist\AutoOpenRGB\)
+; DIST_DIR -- PyInstaller output (dist\UltraVivid\)
 ; PROJECT_DIR -- project root (for icon reference)
 
 ; -- General Settings ---------------------------------------------
@@ -40,8 +40,8 @@ RequestExecutionLevel admin
 SetCompressor /SOLID lzma
 
 ; -- Icon ---------------------------------------------------------
-!define MUI_ICON "${PROJECT_DIR}\assets\AutoOpenRGB.ico"
-!define MUI_UNICON "${PROJECT_DIR}\assets\AutoOpenRGB.ico"
+!define MUI_ICON "${PROJECT_DIR}\assets\UltraVivid.ico"
+!define MUI_UNICON "${PROJECT_DIR}\assets\UltraVivid.ico"
 
 ; -- Interface Settings -------------------------------------------
 !define MUI_ABORTWARNING
@@ -77,7 +77,7 @@ Section "!${APP_NAME} (required)" SecMain
 
     ; Start Menu shortcuts
     CreateDirectory "$SMPROGRAMS\${APP_NAME}"
-    CreateShortcut "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" "$INSTDIR\${APP_EXE}" "" "$INSTDIR\AutoOpenRGB.ico"
+    CreateShortcut "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" "$INSTDIR\${APP_EXE}" "" "$INSTDIR\UltraVivid.ico"
     CreateShortcut "$SMPROGRAMS\${APP_NAME}\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
 
     ; Write uninstaller
@@ -85,7 +85,7 @@ Section "!${APP_NAME} (required)" SecMain
 
     ; Write registry keys for Add/Remove Programs
     WriteRegStr HKLM "${UNINST_KEY}" "DisplayName" "${APP_NAME} - ${APP_DESCRIPTION}"
-    WriteRegStr HKLM "${UNINST_KEY}" "DisplayIcon" "$INSTDIR\AutoOpenRGB.ico"
+    WriteRegStr HKLM "${UNINST_KEY}" "DisplayIcon" "$INSTDIR\UltraVivid.ico"
     WriteRegStr HKLM "${UNINST_KEY}" "UninstallString" "$\"$INSTDIR\Uninstall.exe$\""
     WriteRegStr HKLM "${UNINST_KEY}" "InstallLocation" "$INSTDIR"
     WriteRegStr HKLM "${UNINST_KEY}" "Publisher" "${APP_PUBLISHER}"
@@ -100,7 +100,7 @@ Section "!${APP_NAME} (required)" SecMain
 SectionEnd
 
 Section "Desktop Shortcut" SecDesktop
-    CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\${APP_EXE}" "" "$INSTDIR\AutoOpenRGB.ico"
+    CreateShortcut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\${APP_EXE}" "" "$INSTDIR\UltraVivid.ico"
 SectionEnd
 
 Section /o "Start with Windows" SecAutostart

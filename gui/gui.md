@@ -4,14 +4,14 @@
 
 ## Purpose
 
-Python tkinter GUI for configuring Auto OpenRGB without manually editing config.json.
+PySide6 GUI for configuring Ultra Vivid without manually editing config.json.
 Detects OpenRGB profiles, configures schedule/F-keys/extras, writes config.json, and
 invokes setup.ps1 as Administrator.
 
 ## Dependencies
 
-- Python 3.7+
-- tkinter (built-in with Python on Windows)
+- Python 3.10+
+- PySide6 (see `requirements.txt`)
 
 ## Usage
 

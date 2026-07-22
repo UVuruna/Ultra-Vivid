@@ -28,7 +28,7 @@ env/
 .claude/
 
 # Generated assets (rebuilt from logo.svg)
-assets/AutoOpenRGB.ico
+assets/UltraVivid.ico
 
 # Owner inbox - local only (root Rule #18)
 UV/

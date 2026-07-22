@@ -44,7 +44,7 @@ flowchart LR
 ## 📁 File Structure
 
 ```
-📁 openRGB schedule/
+📁 Ultra Vivid/
   ⚙️ config.json              ← THE ONLY FILE YOU EDIT
   🔧 setup.ps1                ← Run after changes
   📝 setup.md                 ← Documentation for setup.ps1
@@ -89,7 +89,7 @@ flowchart LR
 2. Run:
 
 ```powershell
-cd "U:\Coding\PC Gadgets\openRGB schedule"
+cd "U:\Coding\UVuruna\Gadgets\Ultra Vivid"
 Set-ExecutionPolicy Bypass -Scope Process
 .\setup.ps1
 ```

@@ -1,4 +1,4 @@
-# gui.py - Auto OpenRGB GUI
+# gui.py - Ultra Vivid GUI
 # Entry point: python -m gui.gui  (from project root)
 
 import os
@@ -27,7 +27,7 @@ else:
     _ASSETS_BASE = SCRIPT_DIR
 
 CONFIG_PATH = SCRIPT_DIR / "config.json"
-ICO_PATH = _ASSETS_BASE / "assets" / "AutoOpenRGB.ico"
+ICO_PATH = _ASSETS_BASE / "assets" / "UltraVivid.ico"
 
 # Standard OpenRGB install locations checked on startup
 _OPENRGB_CANDIDATES = [
@@ -49,7 +49,7 @@ _MODIFIERS = ["Shift", "Ctrl+Shift", "Alt+Shift"]
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Auto OpenRGB Setup")
+        self.setWindowTitle("Ultra Vivid Setup")
         self.resize(640, 540)
 
         if ICO_PATH.exists():

@@ -4,11 +4,11 @@
 
 ## Purpose
 
-Builds AutoOpenRGB into a distributable Windows installer (`AutoOpenRGB_Setup.exe`).
+Builds UltraVivid into a distributable Windows installer (`UltraVivid_Setup.exe`).
 
 ## Contents
 
-- [svg_to_ico.py](svg_to_ico.py) — Generate `AutoOpenRGB.ico` from `assets/AutoOpenRGB.svg`
+- [svg_to_ico.py](svg_to_ico.py) — Generate `UltraVivid.ico` from `assets/logo.svg`
 - [create_cert.py](create_cert.py) — Create a self-signed code signing certificate
 - [build.py](build.py) — Main build pipeline (ICO → PyInstaller → sign → NSIS)
 - [installer.nsi](installer.nsi) — NSIS installer script
@@ -30,12 +30,12 @@ Install NSIS: https://nsis.sourceforge.io/ — add to PATH or install to default
 python setup/create_cert.py
 ```
 
-Creates `setup/cert/AutoOpenRGB.pfx`. Requires `setup/cert/password.txt` with the
+Creates `setup/cert/UltraVivid.pfx`. Requires `setup/cert/password.txt` with the
 certificate password (create manually before running).
 
 ### Provide the app icon
 
-Place `AutoOpenRGB.svg` in the `assets/` folder. The build pipeline generates the
+Place `logo.svg` in the `assets/` folder. The build pipeline generates the
 `.ico` from it. If the SVG is missing, the build proceeds without an icon.
 
 ### Run the full build
@@ -44,16 +44,16 @@ Place `AutoOpenRGB.svg` in the `assets/` folder. The build pipeline generates th
 python setup/build.py
 ```
 
-Output: `dist/AutoOpenRGB_Setup.exe`
+Output: `dist/UltraVivid_Setup.exe`
 
 ## Build Steps
 
 | Step | Script | Output |
 |------|--------|--------|
-| 1. Generate ICO | `svg_to_ico.py` | `assets/AutoOpenRGB.ico` |
-| 2. PyInstaller | `pyinstaller` | `dist/AutoOpenRGB/` |
+| 1. Generate ICO | `svg_to_ico.py` | `assets/UltraVivid.ico` |
+| 2. PyInstaller | `pyinstaller` | `dist/UltraVivid/` |
 | 3. Sign exe | `signtool` | signed exe (skipped if no cert) |
-| 4. NSIS installer | `makensis` | `dist/AutoOpenRGB_Setup.exe` |
+| 4. NSIS installer | `makensis` | `dist/UltraVivid_Setup.exe` |
 
 ## Version
 
