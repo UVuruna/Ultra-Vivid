@@ -66,7 +66,7 @@ The tick stores its last decision and skips applying when nothing changed, so th
   📝 README.md, CLAUDE.md, version.py
 ```
 
-Packaged (installer) it is ONE `UltraVivid.exe` doing all roles; config and logs then live in `%LOCALAPPDATA%\UltraVivid`.
+There is ONE live config for every mode at `%LOCALAPPDATA%\UltraVivid\config.json` — the same file for the repo run and the installed app, so a GUI edit always reaches the daemon and the Synapse slots. The repo `config.json` is only its default seed. Packaged, one `UltraVivid.exe` plays all roles.
 
 ---
 
@@ -141,8 +141,9 @@ A shortcut **set** is created in the GUI: name it (e.g. "DUGA") → pick a selec
 | Symptom | Check |
 |---------|-------|
 | No colors at boot | Is `OpenRGB-Server.vbs` in `shell:startup`? The resolver retries for 60 s while the server starts |
-| Wrong color | `python resolver.py --dry-run` shows the decision; `logs/resolver.log` shows what was applied |
+| Wrong color | `python resolver.py --dry-run` shows the decision; `%LOCALAPPDATA%\UltraVivid\logs\resolver.log` shows what was applied |
 | Nothing applies | `python resolver.py --list-devices` — is the SDK server reachable on 6742? |
+| Edits don't apply | Live config is `%LOCALAPPDATA%\UltraVivid\config.json` for BOTH repo and installed app — one file; edit via the GUI |
 | Config rejected | The error names the exact field; the resolver refuses to half-run a broken config |
 
 ---
