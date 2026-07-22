@@ -1,4 +1,4 @@
-"""Apply a color preset to the selected OpenRGB devices via the SDK.
+"""Apply a named color to the selected OpenRGB devices via the SDK.
 
 Connects to the running OpenRGB server (retrying while it starts up),
 filters devices by the config's include/exclude list, and sets colors
@@ -6,9 +6,9 @@ directly — no .orp profiles involved. Prefers each device's Direct mode
 (no flash writes, no flicker); falls back to Static when the hardware
 has no Direct mode (e.g. ASRock motherboard).
 
-Preset semantics: one color -> every selected device gets it; N colors
+Color semantics: one hex -> every selected device gets it; N hex values
 -> selected device i gets colors[i mod N] (device order = OpenRGB id).
-Preset None -> all selected devices go black (all RGB off).
+None -> all selected devices go black (all RGB off).
 """
 
 import logging
@@ -77,9 +77,9 @@ def detect_hypershift_keyboard(settings: Settings) -> bool:
         client.disconnect()
 
 
-def apply_preset(settings: Settings, preset: str | None) -> None:
-    """Apply `preset` (or all-off when None) to the selected devices."""
-    colors = settings.color_presets[preset] if preset else ["000000"]
+def apply_color(settings: Settings, color: str | None) -> None:
+    """Apply the named color (or all-off when None) to the selected devices."""
+    colors = settings.colors[color] if color else ["000000"]
     client = connect(settings)
     try:
         devices = selected_devices(client, settings)

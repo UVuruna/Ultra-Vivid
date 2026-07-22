@@ -5,8 +5,12 @@ stays calm so the preset swatches carry the vividness). All values are
 tokens here, never literals in component code (root Rule #4).
 """
 
+from pathlib import Path
+
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtCore import Qt
+
+_CHECK_SVG = (Path(__file__).parent.parent / "assets" / "check.svg").as_posix()
 
 # -- Color tokens (DESIGN.md dark surface ramp) ---------------------------
 SURFACE_0 = "#141420"        # window background (navy-tinted charcoal)
@@ -119,13 +123,25 @@ def app_qss() -> str:
     }}
     QTableWidget {{ gridline-color: {BORDER}; }}
 
-    QCheckBox::indicator {{
+    QCheckBox::indicator, QListWidget::indicator {{
         width: 18px; height: 18px;
         border-radius: 5px;
-        border: 1px solid {BORDER};
+        border: 2px solid {TEXT_SECONDARY};
         background: {SURFACE_2};
     }}
-    QCheckBox::indicator:checked {{ background: {ACCENT}; border-color: {ACCENT}; }}
+    QCheckBox::indicator:hover, QListWidget::indicator:hover {{
+        border-color: {ACCENT_LIGHT};
+    }}
+    QCheckBox::indicator:checked, QListWidget::indicator:checked {{
+        background: {ACCENT};
+        border-color: {ACCENT};
+        image: url("{_CHECK_SVG}");
+    }}
+    QCheckBox:disabled {{ color: {TEXT_SECONDARY}; }}
+    QCheckBox::indicator:disabled {{
+        border-color: {BORDER};
+        background: {SURFACE_1};
+    }}
 
     QStatusBar {{ color: {TEXT_SECONDARY}; }}
     QScrollBar:vertical {{

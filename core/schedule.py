@@ -1,54 +1,60 @@
-"""Resolve which color preset is active at a given moment.
+"""Resolve which COLOR the active preset produces at a given moment.
 
-Pure logic: (Settings, now) -> preset name, or None meaning ALL RGB OFF.
+Pure logic: (Settings, now) -> color name, or None meaning ALL RGB OFF.
 No I/O, no OpenRGB — the applier consumes the result.
 
-Rules per schedule type (owner spec):
+A PRESET is a rule (owner spec): a trigger grouping whose slots
+reference colors. Exactly one preset is active at a time.
+
+Rules per preset type:
 - hours:     from/to slots, `to` exclusive, may wrap midnight;
              hours not covered by any slot -> OFF
-- weekdays:  every day of the week has a preset (validated in settings)
+- weekdays:  every day of the week has a color (validated in settings)
 - monthdays: from/to day-of-month groups, both inclusive; first match
              wins on overlapping boundaries; uncovered day -> OFF
-- months:    every month has a preset (validated in settings)
-- daylight:  N day presets in equal arcs sunrise->sunset (equal split of
+- months:    every month has a color (validated in settings)
+- daylight:  N day colors in equal arcs sunrise->sunset (equal split of
              the true interval is centered on solar noon by definition);
-             optional twilight preset for civil twilight (dawn->sunrise,
-             sunset->dusk); optional night presets in equal arcs
-             dusk->next dawn; empty night list -> OFF at night
+             SEPARATE morning and evening civil-twilight colors
+             (dawn->sunrise and sunset->dusk); optional night colors in
+             equal arcs dusk->next dawn; empty night list -> OFF
 """
 
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from core.settings import MONTH_KEYS, WEEKDAY_KEYS, Settings
+from core.settings import MONTH_KEYS, WEEKDAY_KEYS, Preset, Settings
 from core.solar import compute_sun_day
 
 
 def tick_timezone(settings: Settings) -> ZoneInfo | None:
     """Timezone for 'now' at tick time: the configured location zone for
     the daylight type (sun events are tz-aware), naive local otherwise."""
-    if settings.schedule.type == "daylight" and settings.location.timezone:
+    preset = settings.active()
+    if preset and preset.type == "daylight" and settings.location.timezone:
         return ZoneInfo(settings.location.timezone)
     return None
 
 
 def resolve(settings: Settings, now: datetime) -> str | None:
-    """Return the active color preset name, or None for all-off."""
-    s = settings.schedule
-    if not s.enabled:
+    """Return the active color name, or None for all-off."""
+    if not settings.schedule_enabled:
         return None
-    if s.type == "hours":
-        return _resolve_hours(s.hours, now.hour)
-    if s.type == "weekdays":
-        return s.weekdays[WEEKDAY_KEYS[now.weekday()]]
-    if s.type == "monthdays":
-        for slot in s.monthdays:
+    preset = settings.active()
+    if preset is None:
+        return None
+    if preset.type == "hours":
+        return _resolve_hours(preset.hours, now.hour)
+    if preset.type == "weekdays":
+        return preset.weekdays[WEEKDAY_KEYS[now.weekday()]]
+    if preset.type == "monthdays":
+        for slot in preset.monthdays:
             if slot["from"] <= now.day <= slot["to"]:
-                return slot["preset"]
+                return slot["color"]
         return None
-    if s.type == "months":
-        return s.months[MONTH_KEYS[now.month - 1]]
-    return _resolve_daylight(settings, now)
+    if preset.type == "months":
+        return preset.months[MONTH_KEYS[now.month - 1]]
+    return _resolve_daylight(settings, preset, now)
 
 
 def _resolve_hours(slots: list[dict], hour: int) -> str | None:
@@ -61,7 +67,7 @@ def _resolve_hours(slots: list[dict], hour: int) -> str | None:
         else:  # wraps midnight, e.g. 21 -> 3
             hit = hour >= start or hour < end
         if hit:
-            return slot["preset"]
+            return slot["color"]
     return None
 
 
@@ -72,36 +78,38 @@ def _index_in_arc(start: datetime, end: datetime, now: datetime, count: int) -> 
     return min(int(elapsed / total * count), count - 1)
 
 
-def _resolve_daylight(settings: Settings, now: datetime) -> str | None:
-    d = settings.schedule.daylight
-    day_presets: list[str] = d["day"]
-    twilight: str | None = d.get("twilight")
-    night_presets: list[str] = d.get("night", [])
+def _resolve_daylight(settings: Settings, preset: Preset, now: datetime) -> str | None:
+    d = preset.daylight
+    day_colors: list[str] = d["day"]
+    twilight_morning: str | None = d.get("twilightMorning")
+    twilight_evening: str | None = d.get("twilightEvening")
+    night_colors: list[str] = d.get("night", [])
 
     sun = compute_sun_day(settings.location, now.date())
 
-    # Polar edge days: no horizon crossing at all -> noon elevation decides.
+    # Polar edge days: no horizon crossing at all -> sun elevation decides.
     if sun.sunrise is None or sun.sunset is None:
         import astral
         import astral.sun
         observer = astral.Observer(settings.location.latitude, settings.location.longitude)
         elevation = astral.sun.elevation(observer, now)
         if elevation > 0:
-            return day_presets[_index_in_arc(
-                now.replace(hour=0, minute=0, second=0, microsecond=0),
-                now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1),
-                now, len(day_presets))]
-        return night_presets[0] if night_presets else None
+            midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            return day_colors[_index_in_arc(
+                midnight, midnight + timedelta(days=1), now, len(day_colors))]
+        return night_colors[0] if night_colors else None
 
     if sun.sunrise <= now < sun.sunset:
-        return day_presets[_index_in_arc(sun.sunrise, sun.sunset, now, len(day_presets))]
+        return day_colors[_index_in_arc(sun.sunrise, sun.sunset, now, len(day_colors))]
 
-    in_morning_twilight = sun.dawn is not None and sun.dawn <= now < sun.sunrise
-    in_evening_twilight = sun.dusk is not None and sun.sunset <= now < sun.dusk
-    if (in_morning_twilight or in_evening_twilight) and twilight is not None:
-        return twilight
+    if sun.dawn is not None and sun.dawn <= now < sun.sunrise:
+        if twilight_morning is not None:
+            return twilight_morning
+    elif sun.dusk is not None and sun.sunset <= now < sun.dusk:
+        if twilight_evening is not None:
+            return twilight_evening
 
-    if not night_presets:
+    if not night_colors:
         return None
 
     # Night arc: today's dusk -> tomorrow's dawn (or yesterday's dusk ->
@@ -114,4 +122,4 @@ def _resolve_daylight(settings: Settings, now: datetime) -> str | None:
         nxt = compute_sun_day(settings.location, now.date() + timedelta(days=1))
         start = sun.dusk or sun.sunset
         end = nxt.dawn or nxt.sunrise or start + timedelta(hours=12)
-    return night_presets[_index_in_arc(start, end, now, len(night_presets))]
+    return night_colors[_index_in_arc(start, end, now, len(night_colors))]

@@ -28,7 +28,7 @@ class DevicesTab(QWidget):
         self.device_list = QListWidget()
         self.device_list.itemChanged.connect(self._store)
 
-        refresh = QPushButton("↻ Refresh from OpenRGB")
+        refresh = QPushButton("🔄 Refresh from OpenRGB")
         refresh.setProperty("secondary", True)
         refresh.clicked.connect(self.reload)
 
@@ -39,12 +39,13 @@ class DevicesTab(QWidget):
         chroma_cfg = self.raw.setdefault(
             "chroma", {"enabled": False, "followSchedule": True})
         self.chroma_enabled = QCheckBox(
-            "Color the Razer keyboard via Chroma (Synapse bindings untouched)")
+            "Color the Razer keyboard via Chroma (Synapse key bindings stay untouched)")
         self.chroma_enabled.setChecked(bool(chroma_cfg.get("enabled", False)))
-        self.chroma_enabled.toggled.connect(
-            lambda on: self.raw["chroma"].__setitem__("enabled", on))
-        self.chroma_follow = QCheckBox("Chroma keyboard follows the schedule")
+        self.chroma_follow = QCheckBox(
+            "…and let the keyboard follow the schedule (same color as the other devices)")
         self.chroma_follow.setChecked(bool(chroma_cfg.get("followSchedule", True)))
+        self.chroma_follow.setEnabled(self.chroma_enabled.isChecked())
+        self.chroma_enabled.toggled.connect(self._chroma_toggled)
         self.chroma_follow.toggled.connect(
             lambda on: self.raw["chroma"].__setitem__("followSchedule", on))
 
@@ -93,6 +94,10 @@ class DevicesTab(QWidget):
                 f"OpenRGB server unreachable ({e}). Stored filter: "
                 f"{self.raw['devices']['mode']} {self.raw['devices']['names']}")
         self.device_list.blockSignals(False)
+
+    def _chroma_toggled(self, on: bool) -> None:
+        self.raw["chroma"]["enabled"] = on
+        self.chroma_follow.setEnabled(on)
 
     def _store(self, _item) -> None:
         """Translate check states into an exclude list (unchecked names)."""

@@ -61,7 +61,7 @@ class Daemon:
     def __init__(self):
         self.cfg = settings_mod.load(CONFIG_PATH)
         self.cfg_mtime = CONFIG_PATH.stat().st_mtime
-        self.hotkey_actions: dict[int, str] = {}   # hotkey id -> preset name
+        self.hotkey_actions: dict[int, str] = {}   # hotkey id -> color name
         self.chroma_session: chroma.ChromaSession | None = None
         self.stop_event = threading.Event()
 
@@ -93,29 +93,29 @@ class Daemon:
             flags = MODIFIER_FLAGS.get(shortcut_set.selector)
             if flags is None:      # hypershift: Synapse territory
                 continue
-            for key, preset in shortcut_set.bindings.items():
+            for key, color in shortcut_set.bindings.items():
                 vk = VIRTUAL_KEYS[key]
                 if user32.RegisterHotKey(None, next_id, flags | MOD_NOREPEAT, vk):
-                    self.hotkey_actions[next_id] = preset
+                    self.hotkey_actions[next_id] = color
                 else:
                     logger.warning("RegisterHotKey failed for %s+%s (in use?)",
                                    shortcut_set.selector, key)
                 next_id += 1
         logger.info("Registered %d hotkeys.", len(self.hotkey_actions))
 
-    def apply_preset(self, preset: str) -> None:
+    def apply_color(self, color: str) -> None:
         try:
-            rgb.apply_preset(self.cfg, preset)
+            rgb.apply_color(self.cfg, color)
         except Exception:
-            logger.exception("OpenRGB apply failed for %r", preset)
-        self.push_chroma(preset)
+            logger.exception("OpenRGB apply failed for %r", color)
+        self.push_chroma(color)
 
     # -- chroma ------------------------------------------------------------
 
-    def push_chroma(self, preset: str | None) -> None:
+    def push_chroma(self, color: str | None) -> None:
         if self.chroma_session is None:
             return
-        hex_color = self.cfg.color_presets[preset][0] if preset else "000000"
+        hex_color = self.cfg.colors[color][0] if color else "000000"
         try:
             self.chroma_session.set_keyboard_color(hex_color)
         except chroma.ChromaError:
@@ -124,7 +124,7 @@ class Daemon:
 
     def chroma_thread(self) -> None:
         """Holds the session alive and optionally follows the schedule."""
-        last_preset: str | None = ...  # sentinel: force first push
+        last_color: str | None = ...  # sentinel: force first push
         while not self.stop_event.wait(chroma.HEARTBEAT_SECONDS):
             if not self.cfg.chroma.enabled:
                 if self.chroma_session is not None:
@@ -134,14 +134,14 @@ class Daemon:
             try:
                 if self.chroma_session is None:
                     self.chroma_session = chroma.ChromaSession()
-                    last_preset = ...
+                    last_color = ...
                 self.chroma_session.heartbeat()
                 if self.cfg.chroma.follow_schedule:
                     now = datetime.now(schedule.tick_timezone(self.cfg))
-                    preset = schedule.resolve(self.cfg, now)
-                    if preset != last_preset:
-                        self.push_chroma(preset)
-                        last_preset = preset
+                    color = schedule.resolve(self.cfg, now)
+                    if color != last_color:
+                        self.push_chroma(color)
+                        last_color = color
             except chroma.ChromaError as e:
                 # Documented fallback: Chroma endpoint may be absent (no
                 # Synapse). Log, retry on the next beat — never crash.
@@ -166,11 +166,11 @@ class Daemon:
             if msg.message == WM_TIMER:
                 self.reload_if_changed()
             elif msg.message == WM_HOTKEY:
-                preset = self.hotkey_actions.get(msg.wParam)
-                if preset:
-                    logger.info("Hotkey %d -> %r", msg.wParam, preset)
+                color = self.hotkey_actions.get(msg.wParam)
+                if color:
+                    logger.info("Hotkey %d -> %r", msg.wParam, color)
                     threading.Thread(
-                        target=self.apply_preset, args=(preset,), daemon=True).start()
+                        target=self.apply_color, args=(color,), daemon=True).start()
             user32.TranslateMessage(ctypes.byref(msg))
             user32.DispatchMessageW(ctypes.byref(msg))
         self.stop_event.set()

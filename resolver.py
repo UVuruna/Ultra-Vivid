@@ -4,7 +4,7 @@ Invocations:
     pythonw resolver.py                     scheduled tick: compute the active
                                             preset from the schedule and apply it
     python  resolver.py --dry-run           print the decision, touch nothing
-    python  resolver.py --preset NAME       apply a named color preset directly
+    python  resolver.py --color NAME        apply a named color directly
     python  resolver.py --shortcut "SetName:key"
                                             apply the preset that set binds to that
                                             key — the target of the per-set slot
@@ -17,7 +17,7 @@ Invocations:
                                             what a slot does lives in config
 
 A tick re-applies only when the decision changed since the last run
-(state file), so a frequent Task Scheduler tick costs nothing; --preset,
+(state file), so a frequent Task Scheduler tick costs nothing; --color,
 --shortcut, --off and --force always apply.
 """
 
@@ -65,15 +65,15 @@ def _read_state() -> dict:
     return {}
 
 
-def _write_state(preset: str | None) -> None:
+def _write_state(color: str | None) -> None:
     STATE_PATH.write_text(
-        json.dumps({"lastPreset": preset, "at": datetime.now().isoformat()}),
+        json.dumps({"lastColor": color, "at": datetime.now().isoformat()}),
         encoding="utf-8",
     )
 
 
-def _shortcut_preset(cfg, spec: str) -> str | None:
-    """Resolve 'SetName:key' (e.g. 'DUGA:q') to a preset name.
+def _shortcut_color(cfg, spec: str) -> str | None:
+    """Resolve 'SetName:key' (e.g. 'DUGA:q') to a color name.
 
     Returns None when the set or key no longer exists — a stale slot
     file is a quiet no-op, never an error dialog on a keypress.
@@ -81,10 +81,10 @@ def _shortcut_preset(cfg, spec: str) -> str | None:
     set_name, _, key = spec.partition(":")
     for shortcut_set in cfg.shortcut_sets:
         if shortcut_set.name.lower() == set_name.lower():
-            preset = shortcut_set.bindings.get(key)
-            if preset is None:
+            color = shortcut_set.bindings.get(key)
+            if color is None:
                 logger.info("Slot %s: key not bound — nothing to do.", spec)
-            return preset
+            return color
     logger.info("Slot %s: set not found — nothing to do.", spec)
     return None
 
@@ -158,7 +158,7 @@ def _write_slots(cfg) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--preset")
+    parser.add_argument("--color")
     parser.add_argument("--shortcut", metavar="SET:KEY")
     parser.add_argument("--list-devices", action="store_true")
     parser.add_argument("--off", action="store_true")
@@ -184,37 +184,37 @@ def main() -> None:
         return
 
     if args.off:
-        rgb.apply_preset(cfg, None)
+        rgb.apply_color(cfg, None)
         _write_state(None)
         return
 
-    if args.preset or args.shortcut:
-        if args.preset:
-            preset = args.preset
-            if preset not in cfg.color_presets:
-                raise SystemExit(f"unknown color preset {preset!r}")
+    if args.color or args.shortcut:
+        if args.color:
+            color = args.color
+            if color not in cfg.colors:
+                raise SystemExit(f"unknown color {color!r}")
         else:
-            preset = _shortcut_preset(cfg, args.shortcut)
-            if preset is None:
+            color = _shortcut_color(cfg, args.shortcut)
+            if color is None:
                 return  # unbound slot: documented no-op
-        rgb.apply_preset(cfg, preset)
-        _write_state(preset)
+        rgb.apply_color(cfg, color)
+        _write_state(color)
         return
 
     # Scheduled tick
     now = datetime.now(schedule.tick_timezone(cfg))
-    preset = schedule.resolve(cfg, now)
-    logger.info("Tick %s -> preset %r", now.isoformat(timespec="seconds"), preset)
+    color = schedule.resolve(cfg, now)
+    logger.info("Tick %s -> color %r", now.isoformat(timespec="seconds"), color)
     if args.dry_run:
-        print(f"now={now.isoformat(timespec='seconds')} -> preset={preset!r} "
-              f"(colors={cfg.color_presets.get(preset) if preset else 'OFF'})")
+        print(f"now={now.isoformat(timespec='seconds')} -> color={color!r} "
+              f"(hex={cfg.colors.get(color) if color else 'OFF'})")
         return
     state = _read_state()
-    if not args.force and "lastPreset" in state and state["lastPreset"] == preset:
+    if not args.force and "lastColor" in state and state["lastColor"] == color:
         logger.info("Unchanged since last tick — skipping apply.")
         return
-    rgb.apply_preset(cfg, preset)
-    _write_state(preset)
+    rgb.apply_color(cfg, color)
+    _write_state(color)
 
 
 if __name__ == "__main__":

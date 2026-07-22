@@ -4,7 +4,8 @@
 
 ## Purpose
 Pure resolution: given the loaded settings and the current moment, return
-the active color preset name — or `None`, meaning ALL RGB OFF.
+the color name the ACTIVE PRESET produces — or `None`, meaning ALL RGB
+OFF (schedule disabled, no active preset, or uncovered time).
 
 ## Semantics per type (owner spec, pseudocode)
 
@@ -21,7 +22,8 @@ daylight:   events = sun(today)
                 arc = which of N equal parts of [sunrise, sunset] holds now
                 -> day[arc]            (equal split of the true interval is
                                         centered on solar noon by definition)
-            ELSE IF in civil twilight AND twilight preset set -> twilight
+            ELSE IF dawn <= now < sunrise AND twilightMorning -> twilightMorning
+            ELSE IF sunset <= now < dusk AND twilightEvening -> twilightEvening
             ELSE (night):
                 IF night list empty -> OFF
                 arc over [dusk, next dawn] (or [prev dusk, dawn] before

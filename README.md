@@ -100,21 +100,21 @@ python -m pytest tests              # schedule semantics golden tests
 
 ## ⚙️ Configuration
 
-Everything lives in `config.json` (schema v2). Full field reference: [Settings](core/settings.md).
+Everything lives in `config.json` (schema v3). Full field reference: [Settings](core/settings.md).
 
-- **`colorPresets`** — named colors (`{"cyan": ["00FFFF"]}`); a preset with N colors distributes them round-robin across the selected devices.
-- **`devices`** — `{"mode": "exclude", "names": ["Razer"]}`: substring match, case-insensitive; `include` mode selects only the named ones.
-- **`schedule.type`** — exactly ONE grouping per schedule:
+- **`colors`** — the DEFINED COLORS: a default palette plus any custom color (`{"cyan": ["00FFFF"]}`); N hex values distribute round-robin across the selected devices.
+- **`presets`** — the RULES: each preset has a name and ONE trigger type; `activePreset` names the one that runs:
 
-| Type | Rule |
+| Trigger type | Rule |
 |------|------|
 | `hours` | `from`–`to` slots (to exclusive, wraps midnight); **uncovered hours = all RGB off** |
-| `weekdays` | all 7 days get a preset |
+| `weekdays` | all 7 days get a color |
 | `monthdays` | day groups `from`–`to` inclusive (1–5, 5–10, …) |
-| `months` | all 12 months get a preset |
-| `daylight` | N day presets over the real sunrise→sunset arc (centered on solar noon), optional civil-twilight preset, optional night presets; no night list = off at night |
+| `months` | all 12 months get a color |
+| `daylight` | N day colors over the real sunrise→sunset arc (centered on solar noon), separate **morning** and **evening** civil-twilight colors, optional night colors; no night list = off at night |
 
-`daylight` needs `location` (latitude/longitude/timezone) — solar events are computed locally, no internet involved. Semantics detail: [Schedule](core/schedule.md).
+- **`devices`** — `{"mode": "exclude", "names": ["Razer"]}`: substring match, case-insensitive; `include` mode selects only the named ones.
+- **`location`** — picked in the GUI from the bundled 45k-city database (search or cascading combos); latitude, longitude and IANA timezone fill automatically and solar events are computed locally, no internet involved. Semantics detail: [Schedule](core/schedule.md).
 
 ---
 

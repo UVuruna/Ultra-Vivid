@@ -4,7 +4,7 @@
 2. pick the selector (shift / ctrl / alt / combos / Razer Hypershift —
    hypershift is offered only when a capable keyboard was detected)
 3. pick ANY keys (letters, number row, numpad, F-keys — free mix)
-4. pick a color preset for each key
+4. pick a color for each key
 5. "Create shortcut files" builds shortcuts/<SetName>/<key>.vbs
 6. a. normal selector → the daemon registers the hotkeys itself
    b. hypershift → the folder opens, Razer Synapse opens, and a guide
@@ -26,7 +26,7 @@ from core import settings as settings_mod
 from core.keymap import KEY_GROUPS
 from core.settings import SHORTCUT_SELECTORS
 from gui import config_io, theme
-from gui.schedule_tab import preset_combo
+from gui.widgets import ADD, REMOVE, color_combo, secondary, tool_button
 
 SYNAPSE_CANDIDATES = [
     Path(r"C:\Program Files\Razer\RazerAppEngine\RazerAppEngine.exe"),
@@ -59,10 +59,9 @@ class ShortcutsTab(QWidget):
 
         self.set_list = QListWidget()
         self.set_list.currentRowChanged.connect(lambda *_: self._load_set())
-        add_set = QPushButton("＋ Add set")
+        add_set = QPushButton(f"{ADD} Add set")
         add_set.clicked.connect(self._add_set)
-        remove_set = QPushButton("Remove set")
-        remove_set.setProperty("secondary", True)
+        remove_set = secondary(QPushButton(f"{REMOVE} Remove set"))
         remove_set.clicked.connect(self._remove_set)
 
         left = QVBoxLayout()
@@ -74,8 +73,7 @@ class ShortcutsTab(QWidget):
         self.selector = QComboBox()
         self.selector.currentTextChanged.connect(self._store_selector)
 
-        self.add_key_btn = QPushButton("＋ Add key")
-        self.add_key_btn.setProperty("secondary", True)
+        self.add_key_btn = secondary(QPushButton(f"{ADD} Add key"))
         self.add_key_btn.clicked.connect(self._add_key_menu)
 
         self.bindings_grid = QGridLayout()
@@ -168,13 +166,11 @@ class ShortcutsTab(QWidget):
         current = self._current()
         if not current:
             return
-        for i, (key, preset) in enumerate(current["bindings"].items()):
-            combo = preset_combo(self.raw, preset)
+        for i, (key, color) in enumerate(current["bindings"].items()):
+            combo = color_combo(self.raw, color)
             combo.currentTextChanged.connect(
                 lambda value, k=key: self._store_binding(k, value))
-            remove = QPushButton("✕")
-            remove.setProperty("secondary", True)
-            remove.setFixedWidth(36)
+            remove = tool_button(REMOVE, "Remove this key")
             remove.clicked.connect(lambda _=False, k=key: self._remove_key(k))
             row, col = i % 8, (i // 8) * 3
             key_label = QLabel(key)
@@ -233,8 +229,8 @@ class ShortcutsTab(QWidget):
 
     def _add_key(self, key: str) -> None:
         current = self._current()
-        first_preset = next(iter(self.raw["colorPresets"]))
-        current["bindings"][key] = first_preset
+        first_color = next(iter(self.raw["colors"]))
+        current["bindings"][key] = first_color
         self._rebuild_bindings()
 
     def _remove_key(self, key: str) -> None:
@@ -242,10 +238,10 @@ class ShortcutsTab(QWidget):
         current["bindings"].pop(key, None)
         self._rebuild_bindings()
 
-    def _store_binding(self, key: str, preset: str) -> None:
+    def _store_binding(self, key: str, color: str) -> None:
         current = self._current()
         if current is not None and not self._loading:
-            current["bindings"][key] = preset
+            current["bindings"][key] = color
 
     def _create_files(self) -> None:
         """Owner flow steps 5-6: save, build the set's folder, then either

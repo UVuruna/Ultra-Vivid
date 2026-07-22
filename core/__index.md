@@ -32,6 +32,11 @@ See [Keymap](keymap.md).
 Optional keyboard coloring through the local Chroma REST endpoint,
 held by the daemon. See [Chroma](chroma.md).
 
+### `locations.py` — World Locations
+The DOMY Watch 45k-city database (`data/world_locations.json`):
+cascading tree + folded-name search. Picking a city fills lat/lon and
+the IANA timezone — the user never types a timezone.
+
 ## Connections
 
 ### Used by

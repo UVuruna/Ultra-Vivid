@@ -1,5 +1,5 @@
 {
-    "version": 2,
+    "version": 3,
     "openrgb": {
         "path": "C:\\Program Files\\OpenRGB\\OpenRGB.exe",
         "host": "127.0.0.1",
@@ -15,143 +15,72 @@
     },
     "devices": {
         "mode": "exclude",
-        "names": [
-            "Razer"
-        ]
-    },
-    "colorPresets": {
-        "blue": [
-            "0000FF"
-        ],
-        "cyan": [
-            "00FFFF"
-        ],
-        "green": [
-            "00FF00"
-        ],
-        "yellow": [
-            "FFFF00"
-        ],
-        "orange": [
-            "FF8000"
-        ],
-        "red": [
-            "FF0000"
-        ],
-        "magenta": [
-            "FF00FF"
-        ],
-        "purple": [
-            "8000FF"
-        ],
-        "white": [
-            "FFFFFF"
-        ],
-        "black": [
-            "000000"
-        ],
-        "rainbow-01": [
-            "0000FF"
-        ],
-        "rainbow-02": [
-            "0088FF"
-        ],
-        "rainbow-03": [
-            "00FFFF"
-        ],
-        "rainbow-04": [
-            "00FF88"
-        ],
-        "rainbow-05": [
-            "00FF00"
-        ],
-        "rainbow-06": [
-            "88FF00"
-        ],
-        "rainbow-07": [
-            "FFFF00"
-        ],
-        "rainbow-08": [
-            "FF8800"
-        ],
-        "rainbow-09": [
-            "FF0000"
-        ],
-        "rainbow-10": [
-            "FF0088"
-        ],
-        "rainbow-11": [
-            "FF00FF"
-        ],
-        "rainbow-12": [
-            "8800FF"
-        ]
-    },
-    "schedule": {
-        "enabled": true,
-        "type": "hours",
-        "hours": [
-            {
-                "from": 3,
-                "to": 6,
-                "preset": "blue"
-            },
-            {
-                "from": 6,
-                "to": 9,
-                "preset": "cyan"
-            },
-            {
-                "from": 9,
-                "to": 12,
-                "preset": "green"
-            },
-            {
-                "from": 12,
-                "to": 15,
-                "preset": "yellow"
-            },
-            {
-                "from": 15,
-                "to": 18,
-                "preset": "orange"
-            },
-            {
-                "from": 18,
-                "to": 21,
-                "preset": "red"
-            },
-            {
-                "from": 21,
-                "to": 0,
-                "preset": "magenta"
-            },
-            {
-                "from": 0,
-                "to": 3,
-                "preset": "purple"
-            }
-        ],
-        "weekdays": {},
-        "monthdays": [],
-        "months": {},
-        "daylight": {
-            "day": [
-                "cyan",
-                "green",
-                "yellow",
-                "orange"
-            ],
-            "twilight": "red",
-            "night": [
-                "purple"
-            ]
-        }
+        "names": ["Razer"]
     },
     "chroma": {
         "enabled": false,
         "followSchedule": true
     },
+    "colors": {
+        "blue":       ["0000FF"],
+        "cyan":       ["00FFFF"],
+        "green":      ["00FF00"],
+        "yellow":     ["FFFF00"],
+        "orange":     ["FF8000"],
+        "red":        ["FF0000"],
+        "magenta":    ["FF00FF"],
+        "purple":     ["8000FF"],
+        "white":      ["FFFFFF"],
+        "black":      ["000000"],
+        "rainbow-01": ["0000FF"],
+        "rainbow-02": ["0088FF"],
+        "rainbow-03": ["00FFFF"],
+        "rainbow-04": ["00FF88"],
+        "rainbow-05": ["00FF00"],
+        "rainbow-06": ["88FF00"],
+        "rainbow-07": ["FFFF00"],
+        "rainbow-08": ["FF8800"],
+        "rainbow-09": ["FF0000"],
+        "rainbow-10": ["FF0088"],
+        "rainbow-11": ["FF00FF"],
+        "rainbow-12": ["8800FF"]
+    },
+    "scheduleEnabled": true,
+    "activePreset": "Daily cycle",
+    "presets": [
+        {
+            "name": "Daily cycle",
+            "type": "hours",
+            "hours": [
+                { "from": 3,  "to": 6,  "color": "blue"    },
+                { "from": 6,  "to": 9,  "color": "cyan"    },
+                { "from": 9,  "to": 12, "color": "green"   },
+                { "from": 12, "to": 15, "color": "yellow"  },
+                { "from": 15, "to": 18, "color": "orange"  },
+                { "from": 18, "to": 21, "color": "red"     },
+                { "from": 21, "to": 0,  "color": "magenta" },
+                { "from": 0,  "to": 3,  "color": "purple"  }
+            ],
+            "weekdays": {},
+            "monthdays": [],
+            "months": {},
+            "daylight": {}
+        },
+        {
+            "name": "Solar day",
+            "type": "daylight",
+            "hours": [],
+            "weekdays": {},
+            "monthdays": [],
+            "months": {},
+            "daylight": {
+                "day": ["cyan", "green", "yellow", "orange"],
+                "twilightMorning": "magenta",
+                "twilightEvening": "red",
+                "night": ["purple"]
+            }
+        }
+    ],
     "shortcuts": {
         "enabled": true,
         "sets": [
@@ -159,18 +88,10 @@
                 "name": "Rainbow",
                 "selector": "shift",
                 "bindings": {
-                    "F1": "rainbow-01",
-                    "F2": "rainbow-02",
-                    "F3": "rainbow-03",
-                    "F4": "rainbow-04",
-                    "F5": "rainbow-05",
-                    "F6": "rainbow-06",
-                    "F7": "rainbow-07",
-                    "F8": "rainbow-08",
-                    "F9": "rainbow-09",
-                    "F10": "rainbow-10",
-                    "F11": "rainbow-11",
-                    "F12": "rainbow-12"
+                    "F1": "rainbow-01", "F2": "rainbow-02", "F3": "rainbow-03",
+                    "F4": "rainbow-04", "F5": "rainbow-05", "F6": "rainbow-06",
+                    "F7": "rainbow-07", "F8": "rainbow-08", "F9": "rainbow-09",
+                    "F10": "rainbow-10", "F11": "rainbow-11", "F12": "rainbow-12"
                 }
             }
         ]
