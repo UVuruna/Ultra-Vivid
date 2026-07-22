@@ -160,5 +160,8 @@ A shortcut **set** is created in the GUI: name it (e.g. "DUGA") → pick a selec
 | Scheduled tasks | [Tasks](core/tasks.md) · [Paths](core/paths.md) |
 | Synapse slots | [Shortcuts (folder)](shortcuts/__index.md) |
 | Control panel | [GUI (folder)](gui/__index.md) |
+| Auto-update | [Updates](core/updates.md) |
 | Build pipeline | [Setup (folder)](setup/__setup.md) |
 | AI guidance | [CLAUDE.md](CLAUDE.md) |
+
+The GUI checks GitHub for a newer release on startup and shows an **Update to vX** button when one exists (download installer → launch → quit). Disable with `update.check: false` in config.

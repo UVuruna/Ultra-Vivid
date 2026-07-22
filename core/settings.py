@@ -73,6 +73,14 @@ class ShortcutSet:
 
 
 @dataclass(frozen=True)
+class UpdateSettings:
+    """Auto-update check against the project's GitHub releases (monorepo
+    standard — root CLAUDE.md)."""
+    repo: str          # "owner/repo" whose latest release is the source of truth
+    check: bool        # check on startup and offer an update
+
+
+@dataclass(frozen=True)
 class ChromaSettings:
     """Optional Razer Chroma module: color the keyboard alongside the
     schedule WITHOUT touching Synapse key bindings (held by the daemon —
@@ -94,6 +102,8 @@ class Settings:
     shortcut_sets: list[ShortcutSet] = field(default_factory=list)
     chroma: ChromaSettings = field(
         default_factory=lambda: ChromaSettings(False, True))
+    updates: UpdateSettings = field(
+        default_factory=lambda: UpdateSettings("UVuruna/Ultra-Vivid", True))
 
     def active(self) -> Preset | None:
         for preset in self.presets:
@@ -155,6 +165,10 @@ def parse(raw: dict) -> Settings:
         chroma=ChromaSettings(
             enabled=bool(raw.get("chroma", {}).get("enabled", False)),
             follow_schedule=bool(raw.get("chroma", {}).get("followSchedule", True)),
+        ),
+        updates=UpdateSettings(
+            repo=raw.get("update", {}).get("repo", "UVuruna/Ultra-Vivid"),
+            check=bool(raw.get("update", {}).get("check", True)),
         ),
     )
 

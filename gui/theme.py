@@ -88,6 +88,12 @@ def app_qss() -> str:
         font-weight: 500;
     }}
     QPushButton[secondary="true"]:hover {{ background: {SURFACE_3}; }}
+    QPushButton[update="true"] {{
+        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {SUCCESS}, stop:1 #16A34A);
+        font-weight: 700;
+    }}
+    QPushButton[update="true"]:hover {{ background: #34D571; }}
 
     QComboBox, QSpinBox, QLineEdit, QDoubleSpinBox, QTimeEdit {{
         background: {SURFACE_2};

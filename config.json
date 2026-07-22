@@ -23,6 +23,10 @@
         "enabled": false,
         "followSchedule": true
     },
+    "update": {
+        "repo": "UVuruna/Ultra-Vivid",
+        "check": true
+    },
     "colors": {
         "blue": [
             "0000FF"

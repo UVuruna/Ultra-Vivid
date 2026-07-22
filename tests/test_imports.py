@@ -19,7 +19,7 @@ MODULES = [
     "hotkey_daemon",
     "core.settings", "core.schedule", "core.solar", "core.apply",
     "core.actions", "core.keymap", "core.chroma", "core.locations",
-    "core.paths", "core.tasks",
+    "core.paths", "core.tasks", "core.updates",
     "gui.app", "gui.main_window", "gui.theme", "gui.widgets",
     "gui.colors_tab", "gui.presets_tab", "gui.devices_tab",
     "gui.shortcuts_tab", "gui.location_picker", "gui.config_io",

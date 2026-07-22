@@ -126,6 +126,8 @@ def build_pyinstaller():
         "gui.app",
         "core.tasks",
         "core.chroma",
+        "core.updates",
+        "version",          # app_version() reads __version__ at runtime
     ]
 
     cmd = [

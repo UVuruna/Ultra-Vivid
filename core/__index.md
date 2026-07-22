@@ -49,6 +49,10 @@ code from the repo and from the frozen single-exe. See [Paths](paths.md).
 Registers the resolver + daemon tasks (pointing at whatever runs them)
 and the OpenRGB server startup. See [Tasks](tasks.md).
 
+### `updates.py` — Update Check
+Compares the latest GitHub release against the running version and offers
+an in-app update (monorepo standard). See [Updates](updates.md).
+
 ## Connections
 
 ### Used by
