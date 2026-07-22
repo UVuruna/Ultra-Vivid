@@ -1,37 +1,81 @@
 {
-    "openRGBPath": "C:\\Program Files\\OpenRGB\\OpenRGB.exe",
-    "schedules": {
-        "startHour": 3,
-        "items": [
-            { "taskName": "OpenRGB zora",       "vbsName": "1-dawn",      "profile": "1-blue"    },
-            { "taskName": "OpenRGB jutro",      "vbsName": "2-morning",   "profile": "2-cyan"    },
-            { "taskName": "OpenRGB podne",      "vbsName": "3-noon",      "profile": "3-green"   },
-            { "taskName": "OpenRGB popodne",    "vbsName": "4-afternoon", "profile": "4-yellow"  },
-            { "taskName": "OpenRGB vece",       "vbsName": "5-evening",   "profile": "5-orange"  },
-            { "taskName": "OpenRGB sumrak",     "vbsName": "6-dusk",      "profile": "6-red"     },
-            { "taskName": "OpenRGB ponoc",      "vbsName": "7-midnight",  "profile": "7-magenta" },
-            { "taskName": "OpenRGB noc",        "vbsName": "8-night",     "profile": "8-purple"  }
-        ]
+    "version": 2,
+    "openrgb": {
+        "path": "C:\\Program Files\\OpenRGB\\OpenRGB.exe",
+        "host": "127.0.0.1",
+        "port": 6742,
+        "connectRetries": 30,
+        "retrySeconds": 2
     },
-    "extras": [
-        { "vbsName": "light", "profile": "9-white" },
-        { "vbsName": "dark",  "profile": "0-black" }
-    ],
-    "rainbow": {
-        "startHour": 3,
-        "items": [
-            { "vbsName": "F1",  "profile": "UC-01-00F" },
-            { "vbsName": "F2",  "profile": "UC-02-08F" },
-            { "vbsName": "F3",  "profile": "UC-03-0FF" },
-            { "vbsName": "F4",  "profile": "UC-04-0F8" },
-            { "vbsName": "F5",  "profile": "UC-05-0F0" },
-            { "vbsName": "F6",  "profile": "UC-06-8F0" },
-            { "vbsName": "F7",  "profile": "UC-07-FF0" },
-            { "vbsName": "F8",  "profile": "UC-08-F80" },
-            { "vbsName": "F9",  "profile": "UC-09-F00" },
-            { "vbsName": "F10", "profile": "UC-10-F08" },
-            { "vbsName": "F11", "profile": "UC-11-F0F" },
-            { "vbsName": "F12", "profile": "UC-12-80F" }
+    "location": {
+        "name": "Belgrade",
+        "latitude": 44.82,
+        "longitude": 20.46,
+        "timezone": "Europe/Belgrade"
+    },
+    "devices": {
+        "mode": "exclude",
+        "names": ["Razer"]
+    },
+    "colorPresets": {
+        "blue":       ["0000FF"],
+        "cyan":       ["00FFFF"],
+        "green":      ["00FF00"],
+        "yellow":     ["FFFF00"],
+        "orange":     ["FF8000"],
+        "red":        ["FF0000"],
+        "magenta":    ["FF00FF"],
+        "purple":     ["8000FF"],
+        "white":      ["FFFFFF"],
+        "black":      ["000000"],
+        "rainbow-01": ["0000FF"],
+        "rainbow-02": ["0088FF"],
+        "rainbow-03": ["00FFFF"],
+        "rainbow-04": ["00FF88"],
+        "rainbow-05": ["00FF00"],
+        "rainbow-06": ["88FF00"],
+        "rainbow-07": ["FFFF00"],
+        "rainbow-08": ["FF8800"],
+        "rainbow-09": ["FF0000"],
+        "rainbow-10": ["FF0088"],
+        "rainbow-11": ["FF00FF"],
+        "rainbow-12": ["8800FF"]
+    },
+    "schedule": {
+        "enabled": true,
+        "type": "hours",
+        "hours": [
+            { "from": 3,  "to": 6,  "preset": "blue"    },
+            { "from": 6,  "to": 9,  "preset": "cyan"    },
+            { "from": 9,  "to": 12, "preset": "green"   },
+            { "from": 12, "to": 15, "preset": "yellow"  },
+            { "from": 15, "to": 18, "preset": "orange"  },
+            { "from": 18, "to": 21, "preset": "red"     },
+            { "from": 21, "to": 0,  "preset": "magenta" },
+            { "from": 0,  "to": 3,  "preset": "purple"  }
+        ],
+        "weekdays": {},
+        "monthdays": [],
+        "months": {},
+        "daylight": {
+            "day": ["cyan", "green", "yellow", "orange"],
+            "twilight": "red",
+            "night": ["purple"]
+        }
+    },
+    "shortcuts": {
+        "enabled": true,
+        "sets": [
+            {
+                "selector": "shift",
+                "keys": "fkeys",
+                "bindings": {
+                    "F1": "rainbow-01", "F2": "rainbow-02", "F3": "rainbow-03",
+                    "F4": "rainbow-04", "F5": "rainbow-05", "F6": "rainbow-06",
+                    "F7": "rainbow-07", "F8": "rainbow-08", "F9": "rainbow-09",
+                    "F10": "rainbow-10", "F11": "rainbow-11", "F12": "rainbow-12"
+                }
+            }
         ]
     }
 }
