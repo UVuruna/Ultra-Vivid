@@ -57,5 +57,5 @@ flowchart LR
 ## Key Documentation
 
 - [README.md](README.md) — overview, usage, technical documentation
-- Engine: `core/__index.md`, `resolver.md`, `hotkey_daemon.md`, `install-task.md`, `shortcuts/__index.md`
+- Engine: `core/__index.md` (settings, schedule, solar, apply, actions, tasks, paths, locations, chroma, keymap), `resolver.md`, `hotkey_daemon.md`, `shortcuts/__index.md`
 - GUI: `gui/__index.md` (PySide6 control panel, `python -m gui.app`)

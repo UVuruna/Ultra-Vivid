@@ -33,5 +33,5 @@ and — in Phase 2 — the hotkey daemon.
 - [Core (folder)](core/__index.md) — settings, schedule, apply
 
 ### Used by
-- Task Scheduler task `Ultra Vivid resolver` — see [Install Task](install-task.md)
+- Task Scheduler task `Ultra Vivid resolver` — see [Tasks](core/tasks.md)
 - [Shortcuts (folder)](shortcuts/__index.md) — Synapse slot files

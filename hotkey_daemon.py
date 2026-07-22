@@ -22,17 +22,16 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
-PROJECT_DIR = Path(__file__).parent
-sys.path.insert(0, str(PROJECT_DIR))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from core import actions
 from core import apply as rgb
-from core import chroma, schedule
+from core import chroma, paths, schedule
 from core import settings as settings_mod
 from core.keymap import MOD_NOREPEAT, MODIFIER_FLAGS, VIRTUAL_KEYS
 
-CONFIG_PATH = PROJECT_DIR / "config.json"
-LOG_DIR = PROJECT_DIR / "logs"
+CONFIG_PATH = paths.CONFIG_PATH
+LOG_DIR = paths.LOG_DIR
 MUTEX_NAME = "UltraVivid-Daemon"
 SCHEDULE_POLL_SECONDS = 60.0
 WM_HOTKEY = 0x0312
@@ -181,6 +180,7 @@ class Daemon:
 
 
 def main() -> None:
+    paths.ensure_state()
     _setup_logging()
     if not _single_instance():
         logger.info("Another daemon instance is running — exiting.")

@@ -5,12 +5,12 @@ stays calm so the preset swatches carry the vividness). All values are
 tokens here, never literals in component code (root Rule #4).
 """
 
-from pathlib import Path
-
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtCore import Qt
 
-_CHECK_SVG = (Path(__file__).parent.parent / "assets" / "check.svg").as_posix()
+from core import paths
+
+_CHECK_SVG = (paths.ASSETS_DIR / "check.svg").as_posix()
 
 # -- Color tokens (DESIGN.md dark surface ramp) ---------------------------
 SURFACE_0 = "#141420"        # window background (navy-tinted charcoal)

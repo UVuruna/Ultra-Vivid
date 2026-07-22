@@ -41,6 +41,14 @@ The DOMY Watch 45k-city database (`data/world_locations.json`):
 cascading tree + folded-name search. Picking a city fills lat/lon and
 the IANA timezone — the user never types a timezone.
 
+### `paths.py` — Path Resolution
+The single source of truth for where config/logs/data live — identical
+code from the repo and from the frozen single-exe. See [Paths](paths.md).
+
+### `tasks.py` — Scheduled Tasks
+Registers the resolver + daemon tasks (pointing at whatever runs them)
+and the OpenRGB server startup. See [Tasks](tasks.md).
+
 ## Connections
 
 ### Used by

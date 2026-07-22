@@ -6,9 +6,7 @@ Opens portrait (W:H = 1:2, clamped to the screen) with a minimum width.
 """
 
 import subprocess
-import sys
 from datetime import datetime
-from pathlib import Path
 
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QGuiApplication, QIcon
@@ -18,7 +16,7 @@ from PySide6.QtWidgets import (
 )
 
 from core import apply as rgb
-from core import schedule
+from core import paths, schedule
 from core import settings as settings_mod
 from core.settings import ConfigError
 from gui import config_io, theme
@@ -27,8 +25,7 @@ from gui.devices_tab import DevicesTab
 from gui.presets_tab import PresetsTab
 from gui.shortcuts_tab import ShortcutsTab
 
-PROJECT_DIR = Path(__file__).parent.parent
-ICO_PATH = PROJECT_DIR / "assets" / "UltraVivid.ico"
+ICO_PATH = paths.ASSETS_DIR / "UltraVivid.ico"
 STATUS_REFRESH_MS = 30_000
 MIN_WIDTH = 900               # owner spec: the shown width is the minimum
 MIN_HEIGHT = 700
@@ -135,9 +132,8 @@ class MainWindow(QMainWindow):
     def _apply_now(self) -> None:
         if not self._save():
             return
-        resolver = PROJECT_DIR / "resolver.py"
         result = subprocess.run(
-            [sys.executable, str(resolver), "--force"],
+            paths.launcher_command("--force"),
             capture_output=True, text=True, timeout=90)
         if result.returncode == 0:
             self.statusBar().showMessage("Applied.", 4000)
@@ -148,10 +144,7 @@ class MainWindow(QMainWindow):
     def _install_tasks(self) -> None:
         if not self._save():
             return
-        script = PROJECT_DIR / "install-task.ps1"
-        subprocess.run([
-            "powershell", "-NoProfile", "-Command",
-            f'Start-Process powershell -ArgumentList '
-            f'"-NoProfile -ExecutionPolicy Bypass -File `"{script}`"" -Verb RunAs'
-        ])
+        # --install-tasks re-launches itself elevated (UAC) and registers
+        # the resolver + daemon tasks pointing at THIS program.
+        subprocess.Popen(paths.launcher_command("--install-tasks"))
         self.statusBar().showMessage("Task installer launched (UAC).", 6000)

@@ -11,7 +11,9 @@ import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
-DB_PATH = Path(__file__).parent.parent / "data" / "world_locations.json"
+from core import paths
+
+DB_PATH = paths.WORLD_DB
 
 # Single-codepoint letters NFKD cannot decompose (same table as DOMY).
 _TRANSLITERATIONS = {

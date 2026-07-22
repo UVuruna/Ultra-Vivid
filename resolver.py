@@ -29,17 +29,16 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-PROJECT_DIR = Path(__file__).parent
-sys.path.insert(0, str(PROJECT_DIR))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from core import actions
 from core import apply as rgb
-from core import schedule, settings as settings_mod
+from core import paths, schedule, settings as settings_mod
 
-CONFIG_PATH = PROJECT_DIR / "config.json"
-LOG_DIR = PROJECT_DIR / "logs"
-STATE_PATH = LOG_DIR / "state.json"
-SLOTS_DIR = PROJECT_DIR / "shortcuts"
+CONFIG_PATH = paths.CONFIG_PATH
+LOG_DIR = paths.LOG_DIR
+STATE_PATH = paths.STATE_PATH
+SLOTS_DIR = paths.SLOTS_DIR
 
 LOG_MAX_BYTES = 512 * 1024
 LOG_BACKUPS = 3
@@ -112,20 +111,19 @@ def write_set_folder(cfg, shortcut_set) -> Path:
     for hypershift sets these are the files the user links in Synapse —
     existing files never change content-meaningfully, so a link is
     forever. Returns the folder path."""
-    pythonw = Path(sys.executable).parent / "pythonw.exe"
     folder = SLOTS_DIR / _safe_folder(shortcut_set.name)
     folder.mkdir(parents=True, exist_ok=True)
     expected = set()
     for key in shortcut_set.bindings:
         file_name = f"{_KEY_FILE_TOKENS.get(key, key)}.vbs"
         expected.add(file_name)
+        command = paths.slot_command_string(f"{shortcut_set.name}:{key}")
         (folder / file_name).write_text(
             f"' Ultra Vivid shortcut slot: set {shortcut_set.name!r}, key {key!r}.\n"
-            "' Bind Synapse LAUNCH to this file - the color it applies\n"
+            "' Bind Synapse LAUNCH to this file - the color/preset it applies\n"
             "' is defined in config.json, never here.\n"
             'Set WshShell = CreateObject("WScript.Shell")\n'
-            f'WshShell.Run """{pythonw}"" ""{PROJECT_DIR / "resolver.py"}""'
-            f' --shortcut ""{shortcut_set.name}:{key}""", 0\n'
+            f'WshShell.Run "{command}", 0\n'
             "WScript.Quit\n",
             encoding="ascii",
         )
@@ -159,6 +157,8 @@ def _write_slots(cfg) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--tick", action="store_true",
+                        help="explicit scheduled-tick marker (same as no args)")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--color")
     parser.add_argument("--shortcut", metavar="SET:KEY")
@@ -169,6 +169,7 @@ def main() -> None:
     parser.add_argument("--write-slots", action="store_true")
     args = parser.parse_args()
 
+    paths.ensure_state()
     _setup_logging()
     cfg = settings_mod.load(CONFIG_PATH)
 

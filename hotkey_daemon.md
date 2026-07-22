@@ -37,4 +37,4 @@ hotkey another app already owns is logged as a warning (Rule #1).
 - [Core (folder)](core/__index.md) — settings, keymap, apply, schedule, chroma
 
 ### Used by
-- Task Scheduler task `Ultra Vivid daemon` — see [Install Task](install-task.md)
+- Task Scheduler task `Ultra Vivid daemon` — see [Tasks](core/tasks.md)

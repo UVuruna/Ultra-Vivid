@@ -53,17 +53,20 @@ The tick stores its last decision and skips applying when nothing changed, so th
 
 ```
 📁 Ultra Vivid/
-  ⚙️ config.json         ← All presets, rules, devices, shortcuts (schema v2)
-  🐍 resolver.py         ← The engine entry point
+  ⚙️ config.json         ← Colors, presets (rules), devices, shortcuts (schema v3)
+  🐍 main.py             ← Single entry: GUI / --tick / --daemon / --install-tasks
+  🐍 resolver.py         ← The scheduling engine
   🐍 hotkey_daemon.py    ← Resident: global hotkeys + optional Chroma
-  🔧 install-task.ps1    ← Run once: tasks + startup server script
-  📁 core/               ← Engine: settings, solar, schedule, apply, keymap, chroma
+  📁 core/               ← Engine: settings, solar, schedule, apply, keymap, chroma, actions, tasks, paths, locations
   📁 gui/                ← Control panel (PySide6): python -m gui.app
-  📁 shortcuts/          ← Stable slot files for Synapse bindings (generated)
+  📁 data/               ← Bundled 45k-city database
+  📁 shortcuts/          ← Per-set slot files for Synapse bindings (generated)
   📁 tests/              ← Golden tests for schedule semantics
-  📁 setup/              ← Build pipeline (installer)
+  📁 setup/              ← Build pipeline (single-exe installer)
   📝 README.md, CLAUDE.md, version.py
 ```
+
+Packaged (installer) it is ONE `UltraVivid.exe` doing all roles; config and logs then live in `%LOCALAPPDATA%\UltraVivid`.
 
 ---
 
@@ -77,7 +80,7 @@ The tick stores its last decision and skips applying when nothing changed, so th
 ```powershell
 cd "U:\Coding\UVuruna\Gadgets\Ultra Vivid"
 pip install -r requirements.txt
-.\install-task.ps1
+python main.py --install-tasks
 ```
 
 3. Configure through the GUI (or edit `config.json` directly):
@@ -153,7 +156,7 @@ A shortcut **set** is created in the GUI: name it (e.g. "DUGA") → pick a selec
 | Engine | [Core (folder)](core/__index.md) → [Settings](core/settings.md), [Solar](core/solar.md), [Schedule](core/schedule.md), [Apply](core/apply.md), [Keymap](core/keymap.md), [Chroma](core/chroma.md) |
 | Entry point | [Resolver](resolver.md) |
 | Daemon | [Hotkey Daemon](hotkey_daemon.md) |
-| Scheduled tasks | [Install Task](install-task.md) |
+| Scheduled tasks | [Tasks](core/tasks.md) · [Paths](core/paths.md) |
 | Synapse slots | [Shortcuts (folder)](shortcuts/__index.md) |
 | Control panel | [GUI (folder)](gui/__index.md) |
 | Build pipeline | [Setup (folder)](setup/__setup.md) |

@@ -54,7 +54,7 @@ def _load_password() -> str | None:
 APP_VERSION = _read_version()
 CERT_PASSWORD = _load_password()
 APP_NAME = "UltraVivid"
-ENTRY_POINT = PROJECT_DIR / "gui" / "app.py"
+ENTRY_POINT = PROJECT_DIR / "main.py"          # single-exe dispatch entry
 
 
 def step(msg: str):
@@ -113,12 +113,19 @@ def build_pyinstaller():
         "PySide6.QtWebEngineQuick",
     ]
 
-    # Modules PyInstaller fails to detect automatically
+    # Modules reached only through lazy/dispatch imports (main.py) or via
+    # data-only packages PyInstaller's static scan can miss.
     hidden_imports = [
         "PySide6.QtCore",
         "PySide6.QtGui",
         "PySide6.QtWidgets",
         "PySide6.QtSvg",
+        # single-exe dispatch targets (imported inside functions)
+        "resolver",
+        "hotkey_daemon",
+        "gui.app",
+        "core.tasks",
+        "core.chroma",
     ]
 
     cmd = [
@@ -135,10 +142,19 @@ def build_pyinstaller():
     else:
         print("  NOTE: UltraVivid.ico not found — building without icon.")
 
-    # Bundle assets folder (contains icon at runtime)
+    # Bundle read-only resources the app reads at runtime.
     assets_dir = PROJECT_DIR / "assets"
     if assets_dir.exists():
         cmd.extend(["--add-data", f"{assets_dir};assets"])
+    world_db = PROJECT_DIR / "data" / "world_locations.json"
+    if world_db.exists():
+        cmd.extend(["--add-data", f"{world_db};data"])
+    default_config = PROJECT_DIR / "config.json"
+    if default_config.exists():
+        cmd.extend(["--add-data", f"{default_config};."])
+
+    # zoneinfo needs the tzdata package bundled (astral / daylight).
+    cmd.extend(["--collect-data", "tzdata"])
 
     # Add hidden imports
     for mod in hidden_imports:

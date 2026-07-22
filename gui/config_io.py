@@ -6,12 +6,11 @@ reaches the file (Rule #1).
 """
 
 import json
-from pathlib import Path
 
+from core import paths
 from core import settings as settings_mod
 
-PROJECT_DIR = Path(__file__).parent.parent
-CONFIG_PATH = PROJECT_DIR / "config.json"
+CONFIG_PATH = paths.CONFIG_PATH
 
 
 def load_raw() -> dict:
