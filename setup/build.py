@@ -16,6 +16,7 @@ Usage:
     python setup/build.py
 """
 
+import json
 import re
 import shutil
 import subprocess
@@ -34,6 +35,10 @@ ICO_PATH = PROJECT_DIR / "assets" / "UltraVivid.ico"
 CERT_PATH = SETUP_DIR / "cert" / "UltraVivid.pfx"
 PASSWORD_PATH = SETUP_DIR / "cert" / "password.txt"
 NSI_PATH = SETUP_DIR / "installer.nsi"
+COMPANY_JSON_PATH = PROJECT_DIR.parent.parent / "company.json"   # monorepo root
+VERSION_INFO_PATH = SETUP_DIR / "version_info.txt"               # generated (gitignored)
+
+APP_DESCRIPTION = "Ultra Vivid — rule-based RGB scheduling for OpenRGB devices"
 
 
 def _read_version() -> str:
@@ -51,8 +56,13 @@ def _load_password() -> str | None:
     return PASSWORD_PATH.read_text(encoding="utf-8").strip()
 
 
+def _load_company() -> dict:
+    return json.loads(COMPANY_JSON_PATH.read_text(encoding="utf-8"))
+
+
 APP_VERSION = _read_version()
 CERT_PASSWORD = _load_password()
+COMPANY = _load_company()
 APP_NAME = "UltraVivid"
 ENTRY_POINT = PROJECT_DIR / "main.py"          # single-exe dispatch entry
 
@@ -73,6 +83,50 @@ def run(cmd: list[str], **kwargs):
             print(f"  {result.stderr}")
         sys.exit(1)
     return result
+
+
+def _version_tuple(version: str) -> tuple[int, int, int, int]:
+    nums = [int(p) for p in version.split(".")]
+    while len(nums) < 4:
+        nums.append(0)
+    return tuple(nums[:4])
+
+
+def generate_version_info():
+    """Write the PyInstaller version-resource file so the exe carries
+    CompanyName/ProductName/version in its Windows PE metadata (root pipeline
+    Step 2). Without it the exe reports an empty CompanyName — e.g. Vitals'
+    company legend lists it as "Unknown"."""
+    step("0/4  Generating version_info.txt (CompanyName, version)")
+    v = APP_VERSION
+    vt = _version_tuple(v)
+    content = f"""\
+VSVersionInfo(
+  ffi=FixedFileInfo(
+    filevers={vt},
+    prodvers={vt},
+    mask=0x3f, flags=0x0, OS=0x40004, fileType=0x1, subtype=0x0, date=(0, 0)
+    ),
+  kids=[
+    StringFileInfo([
+      StringTable(
+        u'040904B0',
+        [StringStruct(u'CompanyName', u'{COMPANY["company_name"]}'),
+         StringStruct(u'FileDescription', u'{APP_DESCRIPTION}'),
+         StringStruct(u'FileVersion', u'{v}'),
+         StringStruct(u'InternalName', u'{APP_NAME}'),
+         StringStruct(u'LegalCopyright', u'{COMPANY["copyright_string"]}'),
+         StringStruct(u'OriginalFilename', u'{APP_NAME}.exe'),
+         StringStruct(u'ProductName', u'{APP_NAME}'),
+         StringStruct(u'ProductVersion', u'{v}')])
+      ]),
+    VarFileInfo([VarStruct(u'Translation', [0x0409, 1200])])
+  ]
+)
+"""
+    VERSION_INFO_PATH.write_text(content, encoding="utf-8")
+    print(f"  Written: {VERSION_INFO_PATH}")
+    print(f"  Version: {v}  Company: {COMPANY['company_name']}")
 
 
 def generate_ico():
@@ -136,6 +190,7 @@ def build_pyinstaller():
         "--onedir",
         "--name", APP_NAME,
         "--windowed",
+        "--version-file", str(VERSION_INFO_PATH),
     ]
 
     # Add icon if it exists
@@ -288,6 +343,55 @@ def build_installer():
         print("  WARNING: Installer exe not found at expected location.")
 
 
+def _powershell(script: str) -> str:
+    result = subprocess.run(
+        ["powershell", "-NoProfile", "-Command", script],
+        capture_output=True, text=True)
+    return result.stdout.strip()
+
+
+def verify_build(exe_path: Path, installer_path: Path):
+    """Fail-closed gate: assert the OUTPUT actually carries what the pipeline
+    promises, instead of trusting that every step ran. A missing step here
+    (no CompanyName, unsigned installer) produces no error on its own — it
+    just ships broken metadata — so nothing but an explicit check catches it.
+
+    Asserts: exe CompanyName == company.json, exe FileVersion == version.py,
+    and (when a signing cert is configured) both exe AND installer are signed.
+    """
+    step("VERIFY  metadata + signatures (build fails if anything is missing)")
+    problems = []
+
+    info = _powershell(
+        f"$v=(Get-Item '{exe_path}').VersionInfo; "
+        f"\"$($v.CompanyName)|$($v.FileVersion)\"")
+    company, _, file_version = info.partition("|")
+    expected_company = COMPANY["company_name"]
+    if company != expected_company:
+        problems.append(
+            f"exe CompanyName is {company!r}, expected {expected_company!r} "
+            "(version resource missing/empty — company legends show 'Unknown')")
+    if APP_VERSION not in file_version:
+        problems.append(
+            f"exe FileVersion is {file_version!r}, expected to contain {APP_VERSION!r}")
+
+    # Signing is documented-optional: only assert it when a cert is configured.
+    if CERT_PATH.exists() and CERT_PASSWORD:
+        for label, target in (("exe", exe_path), ("installer", installer_path)):
+            status = _powershell(f"(Get-AuthenticodeSignature '{target}').Status")
+            if status in ("", "NotSigned"):
+                problems.append(f"{label} is NOT signed (status {status or 'missing'!r})")
+
+    if problems:
+        for p in problems:
+            print(f"  FAIL: {p}")
+        print("\n  Build produced artifacts but they FAIL the pipeline contract.")
+        sys.exit(1)
+
+    print(f"  OK: CompanyName={company!r}  FileVersion={file_version!r}")
+    print("  OK: exe + installer signed")
+
+
 def main():
     print(f"Building {APP_NAME} v{APP_VERSION}")
     print(f"Project: {PROJECT_DIR}")
@@ -296,10 +400,12 @@ def main():
         print(f"ERROR: Entry point not found: {ENTRY_POINT}")
         sys.exit(1)
 
+    generate_version_info()
     generate_ico()
     exe_path = build_pyinstaller()
     sign_exe(exe_path)
     build_installer()
+    verify_build(exe_path, DIST_DIR / f"{APP_NAME}_Setup.exe")
 
     step("BUILD COMPLETE")
     print(f"  Installer: {DIST_DIR / f'{APP_NAME}_Setup.exe'}")

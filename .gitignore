@@ -10,6 +10,7 @@ __pycache__/
 build/
 dist/
 *.spec
+setup/version_info.txt
 
 # Setup certificates (private — never commit)
 setup/cert/
