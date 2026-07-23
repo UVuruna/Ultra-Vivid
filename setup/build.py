@@ -189,51 +189,60 @@ def build_pyinstaller():
     return exe_path
 
 
-def sign_exe(exe_path: Path):
-    step("3/4  Signing exe with certificate")
+def _find_signtool() -> str | None:
+    """Locate signtool.exe (PATH first, then the Windows SDK)."""
+    signtool = shutil.which("signtool")
+    if signtool:
+        return signtool
+    sdk_paths = [
+        Path(r"C:\Program Files (x86)\Windows Kits\10\bin"),
+        Path(r"C:\Program Files\Windows Kits\10\bin"),
+    ]
+    for sdk_base in sdk_paths:
+        if sdk_base.exists():
+            versions = sorted(sdk_base.glob("10.*/x64/signtool.exe"))
+            if versions:
+                return str(versions[-1])
+    return None
 
+
+def sign_file(path: Path, what: str) -> bool:
+    """Authenticode-sign one file with the project certificate.
+
+    Reused for BOTH the inner exe AND the distributed installer — signing
+    only the inner exe leaves the file the user actually runs (the installer)
+    unsigned, which defeats the SmartScreen mitigation. Returns True when the
+    file was signed, False when a prerequisite was missing (skipped, not an
+    error — signing is the documented-optional step).
+    """
     if not CERT_PATH.exists():
         print(f"  WARNING: Certificate not found: {CERT_PATH}")
-        print("  Run 'python setup/create_cert.py' first.")
-        print("  Skipping signing...")
-        return
-
+        print("  Run 'python setup/create_cert.py' first — skipping signing.")
+        return False
     if not CERT_PASSWORD:
         print("  WARNING: Password file not found — skipping signing.")
-        return
-
-    # Use signtool from Windows SDK
-    signtool = shutil.which("signtool")
+        return False
+    signtool = _find_signtool()
     if not signtool:
-        # Try common Windows SDK locations
-        sdk_paths = [
-            Path(r"C:\Program Files (x86)\Windows Kits\10\bin"),
-            Path(r"C:\Program Files\Windows Kits\10\bin"),
-        ]
-        for sdk_base in sdk_paths:
-            if sdk_base.exists():
-                versions = sorted(sdk_base.glob("10.*/x64/signtool.exe"))
-                if versions:
-                    signtool = str(versions[-1])
-                    break
+        print("  WARNING: signtool.exe not found (install Windows SDK) — "
+              "skipping signing.")
+        return False
 
-    if not signtool:
-        print("  WARNING: signtool.exe not found.")
-        print("  Install Windows SDK or add signtool to PATH.")
-        print("  Skipping signing...")
-        return
-
-    cmd = [
+    run([
         signtool, "sign",
         "/f", str(CERT_PATH),
         "/p", CERT_PASSWORD,
         "/fd", "SHA256",
         "/t", "http://timestamp.digicert.com",
-        str(exe_path),
-    ]
+        str(path),
+    ])
+    print(f"  Signed {what}: {path.name}")
+    return True
 
-    run(cmd)
-    print("  Exe signed successfully.")
+
+def sign_exe(exe_path: Path):
+    step("3/4  Signing exe with certificate")
+    sign_file(exe_path, "exe")
 
 
 def build_installer():
@@ -269,6 +278,9 @@ def build_installer():
 
     installer_path = DIST_DIR / f"{APP_NAME}_Setup.exe"
     if installer_path.exists():
+        # Sign the installer itself — this is the file the user downloads and
+        # runs, so it (not just the inner exe) must carry the signature.
+        sign_file(installer_path, "installer")
         print(f"  Installer: {installer_path}")
         size_mb = installer_path.stat().st_size / (1024 * 1024)
         print(f"  Size: {size_mb:.1f} MB")
