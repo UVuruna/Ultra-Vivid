@@ -33,6 +33,10 @@ DATA_DIR = Path(_local) / "UltraVivid"
 CONFIG_PATH = DATA_DIR / "config.json"
 LOG_DIR = DATA_DIR / "logs"
 STATE_PATH = LOG_DIR / "state.json"
+# Learned hardware readiness: the device count seen last time everything was
+# loaded, so a cold boot waits for the slow device (e.g. RGB RAM) to appear
+# before applying. Owned entirely by core.apply (no clash with STATE_PATH).
+DEVICE_STATE_PATH = LOG_DIR / "devices.json"
 
 # Slots live with the generating code (keeps existing Synapse links valid).
 SLOTS_DIR = (DATA_DIR if IS_FROZEN else BUNDLE_DIR) / "shortcuts"

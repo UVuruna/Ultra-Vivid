@@ -36,6 +36,12 @@ class OpenRGBSettings:
     port: int
     connect_retries: int
     retry_seconds: float
+    # Hardware readiness (generic, no hardware names): wait for the device
+    # list to be complete before applying, so a cold boot never colors
+    # everything except a slow device (e.g. RGB RAM). See apply.wait_until_ready.
+    ready_poll_seconds: float      # gap between device-list polls while waiting
+    ready_stable_checks: int       # first-run fallback: count unchanged this many polls = complete
+    ready_timeout_seconds: float   # give up waiting after this (0 = don't wait), then apply + warn
 
 
 @dataclass(frozen=True)
@@ -153,6 +159,9 @@ def parse(raw: dict) -> Settings:
             port=int(o.get("port", 6742)),
             connect_retries=int(o.get("connectRetries", 30)),
             retry_seconds=float(o.get("retrySeconds", 2)),
+            ready_poll_seconds=float(o.get("readyPollSeconds", 0.5)),
+            ready_stable_checks=int(o.get("readyStableChecks", 3)),
+            ready_timeout_seconds=float(o.get("readyTimeoutSeconds", 30)),
         ),
         location=_parse_location(raw),
         devices=DeviceFilter(mode=dev["mode"], names=list(dev.get("names", []))),

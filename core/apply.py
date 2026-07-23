@@ -11,12 +11,15 @@ Color semantics: one hex -> every selected device gets it; N hex values
 None -> all selected devices go black (all RGB off).
 """
 
+import json
 import logging
 import time
+from datetime import datetime
 
 from openrgb import OpenRGBClient
 from openrgb.utils import RGBColor
 
+from core import paths
 from core.settings import Settings
 
 logger = logging.getLogger(__name__)
@@ -77,11 +80,87 @@ def detect_hypershift_keyboard(settings: Settings) -> bool:
         client.disconnect()
 
 
+def _read_expected_count() -> int | None:
+    """The device count seen last time the hardware was fully loaded, or None
+    on first run / unreadable file."""
+    try:
+        return int(json.loads(
+            paths.DEVICE_STATE_PATH.read_text(encoding="utf-8"))["count"])
+    except (OSError, KeyError, ValueError, json.JSONDecodeError):
+        return None
+
+
+def _remember_count(count: int, previous: int | None) -> None:
+    """Persist the ready device count so future boots wait for the same set.
+    Only writes on change (self-calibrates up when a device is added, down
+    once a device is removed)."""
+    if count == previous:
+        return
+    paths.DEVICE_STATE_PATH.write_text(
+        json.dumps({"count": count, "at": datetime.now().isoformat()}),
+        encoding="utf-8",
+    )
+
+
+def wait_until_ready(client: OpenRGBClient, settings: Settings) -> None:
+    """Block until the OpenRGB device list is COMPLETE, then return.
+
+    The SDK server reports the socket as ready before device detection
+    finishes, so a slow device (typically RGB RAM) can be missing for a few
+    seconds at log on — coloring "everything except the RAM". Generic fix,
+    no hardware names: wait until as many devices are present as the last
+    time everything was loaded (learned per machine, DEVICE_STATE_PATH).
+
+    - Warm machine (shortcuts, ticks, resume): the count is already met, so
+      this returns on the first poll — no added latency.
+    - Cold boot with a slow device: polls until it appears.
+    - First run ever (no learned count): waits for the count to plateau.
+    - Timeout (a device was physically removed): logs a warning, applies to
+      what is present, and re-learns the lower count so it never waits again.
+    """
+    o = settings.openrgb
+    if o.ready_timeout_seconds <= 0:
+        return
+    expected = _read_expected_count()
+    deadline = time.monotonic() + o.ready_timeout_seconds
+    last_count, stable = -1, 0
+    waited = False
+
+    while True:
+        n = len(client.devices)
+        if expected is not None:
+            ready = n >= expected
+        else:  # first run: no learned count — wait for the list to settle
+            if n == last_count:
+                stable += 1
+            else:
+                last_count, stable = n, 1
+            ready = n > 0 and stable >= o.ready_stable_checks
+
+        if ready:
+            if waited:
+                logger.info("Devices ready: %d present.", n)
+            _remember_count(n, expected)
+            return
+        if time.monotonic() >= deadline:
+            logger.warning(
+                "Device list still incomplete after %.0fs (%d present, "
+                "expected %s) — applying anyway; a slow/removed device keeps "
+                "its previous color.", o.ready_timeout_seconds, n, expected)
+            _remember_count(n, expected)
+            return
+
+        waited = True
+        time.sleep(o.ready_poll_seconds)
+        client.update()
+
+
 def apply_color(settings: Settings, color: str | None) -> None:
     """Apply the named color (or all-off when None) to the selected devices."""
     colors = settings.colors[color] if color else ["000000"]
     client = connect(settings)
     try:
+        wait_until_ready(client, settings)
         devices = selected_devices(client, settings)
         if not devices:
             logger.warning("No devices left after filtering — nothing to apply.")

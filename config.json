@@ -5,7 +5,10 @@
         "host": "127.0.0.1",
         "port": 6742,
         "connectRetries": 30,
-        "retrySeconds": 2
+        "retrySeconds": 2,
+        "readyPollSeconds": 0.5,
+        "readyStableChecks": 3,
+        "readyTimeoutSeconds": 30
     },
     "location": {
         "name": "Belgrade",

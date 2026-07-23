@@ -15,7 +15,9 @@ can exist; `activePreset` names the one the resolver follows.
 
 ```
 version: 3
-openrgb:         host, port, connectRetries, retrySeconds, path
+openrgb:         host, port, connectRetries, retrySeconds, path,
+                 readyPollSeconds, readyStableChecks, readyTimeoutSeconds
+                 (device-readiness wait — see Apply.wait_until_ready)
 location:        name, latitude, longitude, timezone (picked via the
                  city picker — validated as a real IANA zone)
 devices:         mode ("exclude"|"include"), names [substrings]
