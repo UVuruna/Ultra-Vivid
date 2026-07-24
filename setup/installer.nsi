@@ -255,6 +255,7 @@ Section "Uninstall"
     ; Stop the running app so its files are not locked during removal.
     nsExec::Exec 'schtasks /End /TN "Ultra Vivid daemon"'
     nsExec::Exec 'schtasks /End /TN "Ultra Vivid resolver"'
+    nsExec::Exec 'schtasks /End /TN "OpenRGB server"'
     nsExec::Exec 'taskkill /F /IM "${APP_EXE}"'
     Sleep 500
 
@@ -264,6 +265,8 @@ Section "Uninstall"
     ExecWait 'schtasks /Delete /TN "Ultra Vivid resolver" /F'
 
     ExecWait 'schtasks /Delete /TN "Ultra Vivid daemon" /F'
+
+    ExecWait 'schtasks /Delete /TN "OpenRGB server" /F'
 
     Delete "$APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\OpenRGB-Server.vbs"
 

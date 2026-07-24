@@ -1,10 +1,20 @@
 """Register the Ultra Vivid scheduled tasks — from the repo OR the exe.
 
-Two tasks (same as before, now pointing at whatever is running us):
+Three tasks (all point at whatever is running us):
+  - "OpenRGB server"        log on, ELEVATED (--server --startminimized).
+                            Elevation is REQUIRED for the RAM SMBus, and this
+                            single instance exposes the SDK the resolver/daemon
+                            talk to.
   - "Ultra Vivid resolver"  log on + resume + 10-min tick
   - "Ultra Vivid daemon"    log on, resident (hotkeys + optional Chroma)
-plus the OpenRGB SDK-server VBS in the Startup folder, and removal of the
-legacy nine "OpenRGB *" tasks.
+
+Also removes two conflict sources that leave the RAM uncontrollable at boot:
+  - an auto-start "OpenRGB" *service* — a SECOND, non-server instance that
+    starts as SYSTEM and OWNS the SMBus, so our --server instance can enumerate
+    the RAM but never write to it (everything colors except the RAM);
+  - the old non-elevated Startup VBS — a non-elevated instance cannot own the
+    SMBus, and two instances fight over it.
+...plus the legacy nine "OpenRGB *" tasks.
 
 The registration itself is PowerShell (New-ScheduledTask*, the CIM event
 trigger for resume-from-sleep) run elevated once — the proven approach.
@@ -21,6 +31,7 @@ from core import paths
 
 RESOLVER_TASK = "Ultra Vivid resolver"
 DAEMON_TASK = "Ultra Vivid daemon"
+OPENRGB_TASK = "OpenRGB server"
 LEGACY_TASKS = ["OpenRGB autoprofile", "OpenRGB zora", "OpenRGB jutro",
                 "OpenRGB podne", "OpenRGB popodne", "OpenRGB vece",
                 "OpenRGB sumrak", "OpenRGB ponoc", "OpenRGB noc"]
@@ -37,36 +48,54 @@ def _action(*args: str) -> tuple[str, str]:
     return pythonw, " ".join(f'"{part}"' if " " in part else part for part in inner)
 
 
-def _write_server_vbs() -> Path:
-    """Write OpenRGB-Server.vbs to the Startup folder from Python — kept
-    out of the PowerShell here-string to avoid nested-quote hell."""
+def _openrgb_path() -> str:
+    """OpenRGB.exe path from config, or the default install location."""
     try:
-        openrgb_path = json.loads(
+        return json.loads(
             paths.CONFIG_PATH.read_text(encoding="utf-8"))["openrgb"]["path"]
     except (OSError, KeyError, json.JSONDecodeError):
-        openrgb_path = r"C:\Program Files\OpenRGB\OpenRGB.exe"
+        return r"C:\Program Files\OpenRGB\OpenRGB.exe"
 
-    startup = Path(os.environ["APPDATA"]) / "Microsoft" / "Windows" \
-        / "Start Menu" / "Programs" / "Startup"
-    startup.mkdir(parents=True, exist_ok=True)
-    server_vbs = startup / "OpenRGB-Server.vbs"
-    quote = '"' * 3   # VBS needs the path wrapped in doubled quotes
-    server_vbs.write_text(
-        'Set WshShell = CreateObject("WScript.Shell")\n'
-        f'WshShell.Run {quote}{openrgb_path}"" --server --startminimized", 0\n'
-        "WScript.Quit\n",
-        encoding="ascii",
-    )
-    return server_vbs
+
+def _remove_startup_vbs() -> None:
+    """Delete the old non-elevated Startup launcher. OpenRGB now starts via an
+    ELEVATED scheduled task — a non-elevated instance cannot own the RAM SMBus,
+    and two instances fight over it (the RAM stops responding to the SDK)."""
+    vbs = (Path(os.environ["APPDATA"]) / "Microsoft" / "Windows" / "Start Menu"
+           / "Programs" / "Startup" / "OpenRGB-Server.vbs")
+    if vbs.exists():
+        vbs.unlink()
 
 
 def _build_script() -> str:
     resolver_exe, resolver_args = _action("--tick")
     daemon_exe, daemon_args = _action("--daemon")
+    openrgb = _openrgb_path()
     legacy_list = ", ".join(f'"{name}"' for name in LEGACY_TASKS)
 
     return f"""
 $ErrorActionPreference = "Stop"
+
+# Remove a conflicting auto-start "OpenRGB" SERVICE — a second, non-server
+# instance that starts as SYSTEM and owns the RAM SMBus, so our --server
+# instance can see the RAM but never write to it (colors everything but RAM).
+$svc = Get-Service -Name 'OpenRGB' -ErrorAction SilentlyContinue
+if ($svc) {{
+    Stop-Service -Name 'OpenRGB' -Force -ErrorAction SilentlyContinue
+    & sc.exe delete 'OpenRGB' | Out-Null
+    Write-Host "Removed conflicting OpenRGB service"
+}}
+
+# OpenRGB SDK server — ELEVATED (RAM SMBus needs admin) at log on.
+$openrgbAction = New-ScheduledTaskAction -Execute '{openrgb}' -Argument '--server --startminimized'
+$oLogon = New-ScheduledTaskTrigger -AtLogOn
+$oLogon.UserId = "$env:USERDOMAIN\\$env:USERNAME"
+$oPrincipal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\\$env:USERNAME" -LogonType Interactive -RunLevel Highest
+$oSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero)
+$oTask = New-ScheduledTask -Action $openrgbAction -Trigger $oLogon -Principal $oPrincipal -Settings $oSettings
+$oTask.Author = "UV"
+Register-ScheduledTask -TaskName "{OPENRGB_TASK}" -InputObject $oTask -Force | Out-Null
+Write-Host "Registered: {OPENRGB_TASK} (elevated)"
 
 $resolverAction = New-ScheduledTaskAction -Execute '{resolver_exe}' -Argument '{resolver_args}'
 $logon = New-ScheduledTaskTrigger -AtLogOn
@@ -98,6 +127,13 @@ foreach ($name in @({legacy_list})) {{
     $t = Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
     if ($t) {{ Unregister-ScheduledTask -TaskName $name -Confirm:$false -ErrorAction SilentlyContinue; Write-Host "Removed legacy: $name" }}
 }}
+
+# Ensure exactly ONE (elevated) OpenRGB instance right now — kill any current
+# one (the removed service / old VBS may have started it), then start the task.
+Get-Process -Name 'OpenRGB' -ErrorAction SilentlyContinue | Stop-Process -Force
+Start-Sleep -Milliseconds 700
+Start-ScheduledTask -TaskName "{OPENRGB_TASK}"
+Write-Host "Started: {OPENRGB_TASK}"
 """
 
 
@@ -105,7 +141,7 @@ def install(elevated: bool = False) -> None:
     """Register the tasks. When not already elevated, relaunch this same
     step under UAC and wait for it."""
     paths.ensure_state()
-    _write_server_vbs()
+    _remove_startup_vbs()
     script = _build_script()
     script_file = Path(tempfile.gettempdir()) / "ultravivid_install_tasks.ps1"
     script_file.write_text(script, encoding="utf-8")
