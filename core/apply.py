@@ -177,7 +177,14 @@ def _set_device_color(device, color: RGBColor) -> None:
     mode_names = {m.name.lower(): m for m in device.modes}
     for wanted in _MODE_PREFERENCE:
         if wanted in mode_names:
-            if device.active_mode != mode_names[wanted].id:
-                device.set_mode(mode_names[wanted].id)
+            # ALWAYS send the mode write (UpdateMode), even when OpenRGB already
+            # reports this mode active. RGB RAM (e.g. HyperX Predator) powers up
+            # running its ONBOARD effect while OpenRGB's *detected* state already
+            # reads "Direct" — so the old `active_mode !=` guard skipped the
+            # write, the hardware effect kept running, and the per-LED colors
+            # were ignored (the RAM stayed on its rainbow until the user opened
+            # the OpenRGB GUI and clicked). This forced UpdateMode IS what that
+            # click does: it stops the onboard effect and latches Direct.
+            device.set_mode(mode_names[wanted])
             break
     device.set_color(color)

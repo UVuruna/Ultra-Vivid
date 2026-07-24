@@ -15,8 +15,10 @@ devices = ALL devices, filtered by config include/exclude substrings
 FOR EACH selected device i:
     color = preset.colors[i mod N]     (one color -> everything;
                                         N colors -> round-robin by device)
-    prefer mode "Direct" (no flash writes, no flicker),
-    fall back to "Static" (e.g. ASRock motherboard has no Direct)
+    ALWAYS write mode "Direct" (fallback "Static") — even if OpenRGB already
+        reports that mode: RGB RAM boots running its ONBOARD effect while
+        OpenRGB's detected state already says "Direct", so only a forced mode
+        write stops the effect and latches Direct (what the GUI click does)
     set color
 preset None -> every selected device gets 000000 (all RGB off)
 ```
